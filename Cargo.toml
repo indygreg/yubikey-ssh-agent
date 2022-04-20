@@ -1,0 +1,22 @@
+[package]
+name = "yubikey-ssh-agent"
+version = "0.1.0"
+edition = "2021"
+authors = ["Gregory Szorc <gregory.szorc@gmail.com>"]
+license = "MPL-2.0"
+
+[dependencies]
+base64 = "0.13"
+clap = { version = "3.1", features = ["derive"] }
+dialoguer = "0.10"
+env_logger = "0.9"
+log = "0.4"
+notify-rust = "4.5"
+rsa = "0.5"
+ssh-agent = { version = "0.2", features = ["agent"] }
+ssh-key = { version = "0.4", features = ["alloc", "ecdsa"] }
+thiserror = "1.0"
+x509-certificate = "0.12"
+x509 = "0.2"
+yubikey = "0.5"
+zeroize = "1.3"
