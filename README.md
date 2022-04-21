@@ -47,31 +47,41 @@ When you use the default OpenSSH SSH agent + `libykcs11`:
    YubiKey.
 4. Results from `libykcs11` are relayed back to `ssh`.
 
-A common problem is that `libykcs11` will lose contact with the YubiKey.
-What happens in this scenario is `ssh-agent` thinks that no YubiKey keys
-are available and tells `ssh` there are no keys. `ssh` summarily tries
-to authenticate without knowledge of the YubiKey keys. And this often
+A common problem is that `libykcs11` will lose contact with the YubiKey
+or your cached PIN expires due to a timeout. What happens in these
+scenarios is `ssh-agent` thinks that no YubiKey keys are available
+and tells `ssh` there are no keys. `ssh` summarily tries to
+authenticate without knowledge of the YubiKey keys. And this often
 fails with a `Permission denied` message because the client didn't
-actually present any public keys! Or a variant of this is that `ssh-agent`
-advertises the YubiKey-hosted key but when it attempts to sign the
-signing operation fails because teh YubiKey is locked and this also
-results in a nebulous `Permission denied`.
+actually present any public keys!
 
-This SSH agent has the luxury of being domain specific and can be
-highly opinionated about its workings.
+Or a variant of this is that `ssh-agent` advertises the YubiKey-hosted
+key but when it attempts to use the key it fails because the YubiKey is
+locked (a PIN is required). This also often materializes as a nebulous
+and hard-to-debug `Permission denied` error.
 
-This SSH agent makes the assumption that the YubiKey is the only
-thing providing SSH keys. Therefore, when there is a request for available
-keys or a signature request, it can be very vocal about raising an error
-(through its own GUI or OS notifications) when user interaction is needed.
-For example, if SSH wants to perform a cryptographic signature but the
-YubiKey is locked, this agent will show you a system notification that
-the YubiKey PIN needs to be entered and the SSH agent will wait for you
-to unlock the YubiKey before failing the SSH attempt.
+**Unlike the default `ssh-agent` + `libykcs11` behavior, this agent
+won't fail SSH client operations because the YubiKey is locked, the agent
+lost a connection with the YubiKey, or the agent's cached PIN has expired.
+Instead, this agent recognizes when a key is locked and prompts the user
+to unlock it, before failing the SSH operation.**
+
+This SSH agent makes the assumption that the YubiKey is the provider of
+SSH keys. Therefore, when there is a request for available keys or a
+signature request, it can be very vocal about raising an error (through
+its own GUI or OS notifications) when user interaction is needed. For
+example, if SSH wants to perform a cryptographic signature but the YubiKey
+is locked, this agent will show you a system notification that the YubiKey
+PIN needs to be entered and the SSH agent will wait for you to unlock the
+YubiKey before failing the SSH attempt.
 
 ## State of Project
 
 This project is still very alpha. The graphical UI in particular is
 very crude and in need of a lot of work.
 
-Please file issues or pull requests to discuss improvements!
+Please file issues or just contribute pull requests to improve things.
+
+Only macOS is well tested. Windows doesn't currently build due to
+https://github.com/sekey/ssh-agent.rs not compiling on Windows (this
+is a very fixable problem).
