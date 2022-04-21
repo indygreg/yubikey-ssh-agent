@@ -206,7 +206,7 @@ impl SshAgent {
         Ok(Message::Failure)
     }
 
-    fn get_identities(&self) -> Result<Message, Error> {
+    fn resolve_identities(&self) -> Result<Vec<Identity>, Error> {
         let mut identities = vec![];
 
         let mut guard = self.get_yk()?;
@@ -219,6 +219,27 @@ impl SshAgent {
         } else {
             warn!("request for identities but no YubiKey found; returning empty list");
         }
+
+        Ok(identities)
+    }
+
+    fn get_identities(&self) -> Result<Message, Error> {
+        // There's an apparent bug (at least on macOS) where PCSC interruption
+        // can result in the YubiKey returning empty data for a populated slot.
+        // To mitigate this, we automatically retry lookups if we get no
+        // identities by purging the former YubiKey connection.
+        let identities = self.resolve_identities()?;
+
+        let identities = if identities.is_empty() {
+            warn!("no YubiKey keys found during identities lookup; resetting YubiKey session and trying again");
+
+            self.get_yk()?.take();
+            self.get_state()?.set_session_opened(false);
+
+            self.resolve_identities()?
+        } else {
+            identities
+        };
 
         Ok(Message::IdentitiesAnswer(identities))
     }
