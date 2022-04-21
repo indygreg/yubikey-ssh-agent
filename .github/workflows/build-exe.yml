@@ -1,0 +1,82 @@
+name: Build executables
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - os: 'ubuntu-20.04'
+            triple: 'x86_64-unknown-linux-gnu'
+          - os: 'macos-11.0'
+            triple: 'aarch64-apple-darwin'
+          - os: 'macos-11.0'
+            triple: 'x86_64-apple-darwin'
+          #- os: 'windows-2022'
+          #  triple: 'i686-pc-windows-msvc'
+          #- os: 'windows-2022'
+          #  triple: 'x86_64-pc-windows-msvc'
+    runs-on: ${{ matrix.target.os }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/rust-bootstrap
+        with:
+          rust_toolchain: stable
+
+      - name: Build
+        run: |
+          just actions-build-exe yubikey-ssh-agent ${{ matrix.target.triple }}
+
+      - name: Upload (non-Windows)
+        if: runner.os != 'Windows'
+        uses: actions/upload-artifact@v3
+        with:
+          name: exe-yubikey-ssh-agent-${{ matrix.target.triple }}
+          path: upload/yubikey-ssh-agent
+
+      - name: Upload (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v3
+        with:
+          name: exe-yubikey-ssh-agent-${{ matrix.target.triple }}
+          path: upload/yubikey-ssh-agent.exe
+
+  macos-universal:
+    needs:
+      - build
+    runs-on: 'macos-11'
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/install-just
+
+      - name: Download aarch64 executable
+        uses: actions/download-artifact@v3
+        with:
+          name: exe-yubikey-ssh-agent-aarch64-apple-darwin
+          path: yubikey-ssh-agent-aarch64
+
+      - name: Download x86-64 executable
+        uses: actions/download-artifact@v3
+        with:
+          name: exe-yubikey-ssh-agent-x86_64-apple-darwin
+          path: yubikey-ssh-agent-x86-64
+
+      - name: Produce Universal Binary
+        run: |
+          just actions-macos-universal yubikey-ssh-agent
+
+      - name: Upload Universal Executable
+        uses: actions/upload-artifact@v2
+        with:
+          name: exe-yubikey-ssh-agent-macos-universal
+          path: uploads/yubikey-ssh-agent
