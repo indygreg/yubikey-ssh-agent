@@ -4,11 +4,13 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Gregory Szorc <gregory.szorc@gmail.com>"]
 license = "MPL-2.0"
+readme = "README.md"
 
 [dependencies]
 base64 = "0.13"
 clap = { version = "3.1", features = ["derive"] }
-dialoguer = "0.10"
+egui = "0.17"
+eframe = "0.17"
 env_logger = "0.9"
 log = "0.4"
 notify-rust = "4.5"

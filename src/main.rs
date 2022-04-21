@@ -14,10 +14,12 @@
 //!
 //! The agent automatically exposes keys in PIV slots in YubiKeys.
 
+pub mod ui;
+
 use {
+    crate::ui::{AuthenticationState, State},
     clap::{ArgGroup, Parser},
     log::{error, info, warn},
-    notify_rust::Notification,
     rsa::PublicKeyParts,
     ssh_agent::{
         agent::Agent,
@@ -32,20 +34,23 @@ use {
         path::PathBuf,
         str::FromStr,
         sync::{Arc, Mutex, MutexGuard},
+        thread,
+        time::{Duration, Instant},
     },
     thiserror::Error,
     x509::SubjectPublicKeyInfo,
-    x509_certificate::{DigestAlgorithm, X509CertificateError},
+    x509_certificate::DigestAlgorithm,
     yubikey::{
         certificate::PublicKeyInfo,
         piv::{AlgorithmId, SlotId},
         Certificate, Error as YkError, MgmKey, YubiKey,
     },
-    zeroize::Zeroizing,
 };
 
+const PIN_PROMPT_TIMEOUT_SECONDS: u64 = 60;
+
 #[derive(Debug, Error)]
-enum Error {
+pub enum Error {
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
@@ -71,23 +76,6 @@ enum Error {
     SmartcardFailedAuthentication,
 }
 
-/// A function that will attempt to resolve the PIN to unlock a YubiKey.
-type PinCallback = fn() -> Result<Vec<u8>, Error>;
-
-fn prompt_smartcard_pin() -> Result<Vec<u8>, Error> {
-    Notification::new()
-        .summary("YubiKey pin needed")
-        .body("SSH is requesting you to unlock your YubiKey")
-        .timeout(5000)
-        .show()?;
-
-    let pin = dialoguer::Password::new()
-        .with_prompt("Please enter device PIN")
-        .interact()?;
-
-    Ok(pin.as_bytes().to_vec())
-}
-
 /// Describes the needed authentication for an operation.
 pub enum RequiredAuthentication {
     Pin,
@@ -108,113 +96,6 @@ impl RequiredAuthentication {
             Self::ManagementKey | Self::ManagementKeyAndPin => true,
             Self::Pin => false,
         }
-    }
-}
-
-/// Attempts an operation that requires YubiKey authentication.
-fn attempt_authenticated_operation<T>(
-    yk: &mut YubiKey,
-    op: impl Fn(&mut YubiKey) -> Result<T, Error>,
-    required_authentication: RequiredAuthentication,
-    get_device_pin: Option<&PinCallback>,
-) -> Result<T, Error> {
-    const MAX_ATTEMPTS: u8 = 3;
-
-    for attempt in 1..MAX_ATTEMPTS + 1 {
-        info!("attempt {}/{}", attempt, MAX_ATTEMPTS);
-
-        match op(yk) {
-            Ok(x) => {
-                return Ok(x);
-            }
-            Err(Error::YubiKey(YkError::AuthenticationError)) => {
-                // This was our last attempt. Give up now.
-                if attempt == MAX_ATTEMPTS {
-                    return Err(Error::SmartcardFailedAuthentication);
-                }
-
-                warn!("device refused operation due to authentication error");
-
-                if required_authentication.requires_management_key() {
-                    match yk.authenticate(MgmKey::default()) {
-                        Ok(()) => {
-                            warn!("management key authentication successful");
-                        }
-                        Err(e) => {
-                            error!("management key authentication failure: {}", e);
-                            continue;
-                        }
-                    }
-                }
-
-                if required_authentication.requires_pin() {
-                    if let Some(pin_cb) = get_device_pin {
-                        let pin = Zeroizing::new(pin_cb().map_err(|e| {
-                            X509CertificateError::Other(format!(
-                                "error retrieving device pin: {}",
-                                e
-                            ))
-                        })?);
-
-                        match yk.verify_pin(&pin) {
-                            Ok(()) => {
-                                warn!("pin verification successful");
-                            }
-                            Err(e) => {
-                                error!("pin verification failure: {}", e);
-                                continue;
-                            }
-                        }
-                    } else {
-                        warn!(
-                            "unable to retrieve device pin; future attempts will fail; giving up"
-                        );
-                        return Err(Error::SmartcardFailedAuthentication);
-                    }
-                }
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        }
-    }
-
-    Err(Error::SmartcardFailedAuthentication)
-}
-
-/// Manages access to a global YubiKey instance.
-struct GlobalYubiKey {
-    yk: Arc<Mutex<Option<YubiKey>>>,
-}
-
-impl GlobalYubiKey {
-    pub fn new() -> Self {
-        Self {
-            yk: Arc::new(Mutex::new(None)),
-        }
-    }
-
-    /// Obtain an exclusive lock on the YubiKey.
-    ///
-    /// If a YubiKey is available, returns `Some`. Otherwise `None`.
-    pub fn get(&self) -> Result<MutexGuard<Option<YubiKey>>, Error> {
-        let mut guard = self
-            .yk
-            .lock()
-            .map_err(|_| Error::Lock("failed to acquire mutex on YubiKey"))?;
-
-        if guard.is_none() {
-            match YubiKey::open() {
-                Ok(yk) => {
-                    guard.replace(yk);
-                }
-                Err(e) => {
-                    warn!("failed to open YubiKey: {}", e);
-                }
-            }
-        }
-
-        Ok(guard)
     }
 }
 
@@ -265,12 +146,60 @@ fn get_identity_from_slot(yk: &mut YubiKey, slot: SlotId) -> Result<Option<Ident
 }
 
 struct SshAgent {
-    yk: GlobalYubiKey,
+    yk: Arc<Mutex<Option<YubiKey>>>,
     slot: SlotId,
-    pin_callback: Option<PinCallback>,
+    state: Arc<Mutex<State>>,
 }
 
 impl SshAgent {
+    fn get_state(&self) -> Result<MutexGuard<State>, Error> {
+        self.state
+            .lock()
+            .map_err(|_| Error::Lock("failed to acquire state lock"))
+    }
+
+    /// Obtain an exclusive lock on the YubiKey.
+    ///
+    /// If a YubiKey is available, returns `Some`. Otherwise `None`.
+    pub fn get_yk(&self) -> Result<MutexGuard<Option<YubiKey>>, Error> {
+        let mut guard = self
+            .yk
+            .lock()
+            .map_err(|_| Error::Lock("failed to acquire mutex on YubiKey"))?;
+
+        // Perform a state check to make sure the hardware session is in a good
+        // state and clear out existing connection if not.
+        if let Some(yk) = guard.deref_mut() {
+            match Certificate::read(yk, SlotId::Authentication) {
+                Ok(_) => {
+                    info!("found existing session; successfully performed PCSC state check");
+                }
+                Err(YkError::PcscError { .. }) => {
+                    warn!("PCSC connection to YubiKey went away; resetting session");
+                    guard.take();
+                }
+                Err(_) => {}
+            }
+        }
+
+        if guard.is_none() {
+            warn!("establishing new session with YubiKey");
+
+            match YubiKey::open() {
+                Ok(yk) => {
+                    guard.replace(yk);
+                }
+                Err(e) => {
+                    warn!("failed to open YubiKey: {}", e);
+                }
+            }
+        }
+
+        self.get_state()?.set_session_opened(guard.is_some());
+
+        Ok(guard)
+    }
+
     fn add_identity(&self, _identity: AddIdentity) -> Result<Message, Error> {
         warn!("agent does not support registering foreign identities / keys");
 
@@ -280,7 +209,7 @@ impl SshAgent {
     fn get_identities(&self) -> Result<Message, Error> {
         let mut identities = vec![];
 
-        let mut guard = self.yk.get()?;
+        let mut guard = self.get_yk()?;
 
         if let Some(yk) = guard.deref_mut() {
             if let Some(identity) = get_identity_from_slot(yk, self.slot)? {
@@ -288,14 +217,14 @@ impl SshAgent {
                 identities.push(identity);
             }
         } else {
-            warn!("request for identities but not YubiKey found; returning empty list");
+            warn!("request for identities but no YubiKey found; returning empty list");
         }
 
         Ok(Message::IdentitiesAnswer(identities))
     }
 
     fn sign_request(&self, request: SignRequest) -> Result<Message, Error> {
-        let mut guard = self.yk.get()?;
+        let mut guard = self.get_yk()?;
 
         let yk = if let Some(yk) = guard.deref_mut() {
             yk
@@ -357,15 +286,16 @@ impl SshAgent {
             }
         };
 
-        let res = attempt_authenticated_operation(
+        let res = self.attempt_authenticated_operation(
             yk,
             |yk| {
-                let signature = ::yubikey::piv::sign_data(yk, &digest, algorithm_id, self.slot)?;
+                let signature = yubikey::piv::sign_data(yk, &digest, algorithm_id, self.slot)?;
+
+                self.get_state()?.record_signing_operation();
 
                 Ok(signature.to_vec())
             },
             RequiredAuthentication::Pin,
-            self.pin_callback.as_ref(),
         );
 
         match res {
@@ -382,6 +312,97 @@ impl SshAgent {
                 Ok(Message::Failure)
             }
         }
+    }
+
+    fn attempt_authenticated_operation<T>(
+        &self,
+        yk: &mut YubiKey,
+        op: impl Fn(&mut YubiKey) -> Result<T, Error>,
+        required_authentication: RequiredAuthentication,
+    ) -> Result<T, Error> {
+        const MAX_ATTEMPTS: u8 = 3;
+
+        for attempt in 1..MAX_ATTEMPTS + 1 {
+            match op(yk) {
+                Ok(x) => {
+                    self.get_state()?
+                        .set_authentication(AuthenticationState::Authenticated);
+
+                    return Ok(x);
+                }
+                Err(Error::YubiKey(YkError::AuthenticationError)) => {
+                    {
+                        let mut state = self.get_state()?;
+                        state.set_authentication(AuthenticationState::Unauthenticated);
+                        state.record_failed_operation();
+                    }
+
+                    // This was our last attempt. Give up now.
+                    if attempt == MAX_ATTEMPTS {
+                        return Err(Error::SmartcardFailedAuthentication);
+                    }
+
+                    warn!("device refused operation due to authentication error");
+
+                    if required_authentication.requires_management_key() {
+                        match yk.authenticate(MgmKey::default()) {
+                            Ok(()) => {
+                                warn!("management key authentication successful");
+                            }
+                            Err(e) => {
+                                error!("management key authentication failure: {}", e);
+                                continue;
+                            }
+                        }
+                    }
+
+                    if required_authentication.requires_pin() {
+                        // We need to be careful about deadlock here, as the
+                        // UI thread will continuously acquire the state lock
+                        // to process interactions. So our lock holds need to be
+                        // as short as possible.
+                        {
+                            self.get_state()?.request_pin()?;
+                        }
+
+                        let deadline =
+                            Instant::now() + Duration::from_secs(PIN_PROMPT_TIMEOUT_SECONDS);
+
+                        let pin;
+
+                        loop {
+                            if let Some(value) = self.get_state()?.retrieve_pin() {
+                                pin = Some(value);
+                                break;
+                            }
+
+                            if Instant::now() >= deadline {
+                                warn!("reached maximum wait time for PIN; giving up");
+                                return Err(Error::SmartcardFailedAuthentication);
+                            }
+
+                            thread::sleep(Duration::from_millis(25));
+                        }
+
+                        match yk.verify_pin(pin.unwrap().as_bytes()) {
+                            Ok(()) => {
+                                warn!("PIN verification successful");
+                            }
+                            Err(e) => {
+                                error!("PIN verification failed: {}", e);
+                                self.get_state()?.record_failed_operation();
+                                continue;
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            }
+        }
+
+        Err(Error::SmartcardFailedAuthentication)
     }
 }
 
@@ -427,6 +448,40 @@ impl Agent for SshAgent {
 /// Then perform an SSH operation needing the private key on your YubiKey:
 ///
 /// $ ssh git@github.com
+///
+/// # Security Considerations
+///
+/// This agent does not attempt to export private keys from the hardware device.
+/// (If you generate private keys directly on the hardware device it is
+/// actually impossible to export the private keys.) So there should be no
+/// potential to exfiltrate private keys using this software.
+///
+/// This agent does not cache your unlock PIN or management key. So if the
+/// memory of this agent's process is dumped, you'd only have access to the
+/// PIN or management key if an authentication operation were in progress.
+///
+/// This agent maintains a long-lived connection with the YubiKey. Depending
+/// on the settings of the PIV slot, a prior authentication (e.g. PIN unlock)
+/// could carry forward to a subsequent operation. To prevent this, change the
+/// PIV authentication requirements for the slot to require authentication on
+/// every operation. This will likely result in more PIN requests than before
+/// and this behavior can be burdensome if establishing many SSH sessions or
+/// connections drop frequently and need to be re-keyed.
+///
+/// This agent also does not allow registering non-YubiKey keys. Therefore it
+/// doesn't keep private key data around in memory. Therefore the general
+/// threat of anybody being able to dump memory of an SSH agent process to
+/// recover private keys does not apply.
+///
+/// General threat vectors around unwanted parties initiating malicious requests
+/// through SSH agents still apply. From an SSH agent's perspective, it is
+/// difficult to impossible to authenticate who is making a request for an
+/// operation. So the best you can do is limit who can send requests to the SSH
+/// agent process. This entails best practices like not listening on external
+/// network interfaces, not forwarding your agent to remote machines, and
+/// limiting who can write to the UNIX domain socket. (We restrict writing
+/// to the current user by default.)
+///
 #[derive(Parser)]
 #[clap(arg_required_else_help(true))]
 #[clap(group(
@@ -448,30 +503,60 @@ struct Cli {
     slot: String,
 }
 
+#[cfg(target_os = "macos")]
+fn supplement_notifications() -> Result<(), Error> {
+    let identifier = notify_rust::get_bundle_identifier_or_default("yubikey-ssh-agent");
+    notify_rust::set_application(&identifier).expect("unable to set notifying application");
+    Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn supplement_notifications() -> Result<(), Error> {
+    Ok(())
+}
+
 fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
+    supplement_notifications().unwrap();
 
     let cli = Cli::parse();
 
     let slot = SlotId::from_str(&cli.slot).expect("illegal slot value; try 9a");
     warn!("using slot {:?}", slot);
 
+    let ui = crate::ui::Ui::new();
+    let state = ui.state();
+
     let agent = SshAgent {
-        yk: GlobalYubiKey::new(),
+        yk: Arc::new(Mutex::new(None)),
         slot,
-        pin_callback: Some(prompt_smartcard_pin),
+        state: state.clone(),
     };
 
-    if let Some(path) = cli.socket {
-        if path.exists() {
-            std::fs::remove_file(&path).unwrap();
+    let agent_thread = thread::spawn(|| {
+        if let Some(path) = cli.socket {
+            if path.exists() {
+                std::fs::remove_file(&path).unwrap();
+            }
+
+            warn!("To use this agent process:");
+            warn!("export SSH_AUTH_SOCK={}", path.display());
+
+            agent.run_unix(&path).expect("agent should exit cleanly")
+        } else if let Some(address) = cli.tcp {
+            agent.run_tcp(&address).expect("agent should exit cleanly")
+        } else {
+            panic!("argument parsing bug");
         }
+    });
 
-        warn!("To use this agent process:");
-        warn!("export SSH_AUTH_SOCK={}", path.display());
+    state
+        .lock()
+        .expect("should be able to get state")
+        .set_agent_thread(agent_thread);
 
-        agent.run_unix(&path).expect("agent should exit cleanly");
-    } else if let Some(address) = cli.tcp {
-        agent.run_tcp(&address).expect("agent should exit cleanly");
-    }
+    // The event loop needs to run on the main thread (at least on macOS).
+    // And the agent also runs indefinitely.
+    ui.run();
 }
