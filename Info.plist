@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDisplayName</key>
+    <string>YubiKey SSH Agent</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.gregoryszorc.yubikey-ssh-agent</string>
+    <key>CFBundleVersion</key>
+    <string>0.0.1</string>
+    <key>CFBundleSignature</key>
+    <string>YKSA</string>
+    <key>CFBundleExecutable</key>
+    <string>yubikey-ssh-agent</string>
+</dict>
+</plist>
