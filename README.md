@@ -16,6 +16,12 @@ Then, tell SSH how to use it:
 
     $ export SSH_AUTH_SOCK=/tmp/yubikey-ssh.sock
 
+To make this change permanent, you'll want something like this at the
+top of your `~/.ssh/config`:
+
+    Host *
+        IdentityAgent /tmp/yubikey-ssh.sock
+
 Then perform an SSH operation needing the private key on your YubiKey:
 
     $ ssh git@github.com
@@ -102,3 +108,25 @@ Please file issues or just contribute pull requests to improve things.
 Only macOS is well tested. Windows doesn't currently build due to
 https://github.com/sekey/ssh-agent.rs not compiling on Windows (this
 is a very fixable problem).
+
+## Quirks
+
+### macOS Default SSH Agent
+
+macOS has an SSH agent built-in and will set `SSH_AGENT_SOCK` automatically
+to a value like `SSH_AUTH_SOCK=/private/tmp/com.apple.launchd.{random}/Listeners`.
+
+[Stick with Security: YubiKey, SSH, GnuPG, macOS](https://evilmartians.com/chronicles/stick-with-security-yubikey-ssh-gnupg-macos)
+has a good overview of the problem and how to work around it.
+
+Essentially, the system built-in
+`/System/Library/LaunchAgents/com.openssh.ssh-agent.plist` will launch
+`ssh-agent` and set `SSH_AUTH_SOCK` to point to its socket.
+
+You can't edit this file with system integrity protection enabled. So a
+workaround is to create your own plists for use with launchd/launchctl
+to spawn this agent and symlink over `SSH_AUTH_SOCK`.
+
+Some day we'll likely streamline this procedure to enable people to easily
+replace `SSH_AUTH_SOCK` so SSH clients never use the system default
+agent.
