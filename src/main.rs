@@ -231,12 +231,25 @@ impl SshAgent {
         let identities = self.resolve_identities()?;
 
         let identities = if identities.is_empty() {
-            warn!("no YubiKey keys found during identities lookup; resetting YubiKey session and trying again");
+            let try_again = {
+                let mut yk = self.get_yk()?;
 
-            self.get_yk()?.take();
-            self.get_state()?.set_session_opened(false);
+                if yk.is_some() {
+                    warn!("no keys found during identities lookup; resetting YubiKey session and trying again");
+                    yk.take();
+                    self.get_state()?.set_session_opened(false);
 
-            self.resolve_identities()?
+                    true
+                } else {
+                    false
+                }
+            };
+
+            if try_again {
+                self.resolve_identities()?
+            } else {
+                identities
+            }
         } else {
             identities
         };
