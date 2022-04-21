@@ -75,6 +75,23 @@ is locked, this agent will show you a system notification that the YubiKey
 PIN needs to be entered and the SSH agent will wait for you to unlock the
 YubiKey before failing the SSH attempt.
 
+### Security Advantages
+
+This agent doesn't support adding keys. This agent doesn't (yet) support
+caching the YubiKey PIN or management key.
+
+There are no secrets lingering in memory that can easily be extracted by
+a user on the same machine. (If someone accesses the process at just the
+right time they could acquire the PIN, however.)
+
+The main threat model for this SSH agent is an unwanted client requesting
+signing operations. This threat model exists for all SSH agent implementations.
+For the ultra paranoid, you'll want to set a PIN protection policy on the
+YubiKey to require a PIN or touch for every operation. Without such a policy,
+multiple signing operations may be performed from a single unlock/touch
+and anyone with access to the SSH agent could effectively use the private
+key on the YubiKey.
+
 ## State of Project
 
 This project is still very alpha. The graphical UI in particular is
