@@ -29,7 +29,9 @@ pub enum AppState {
     PinRequested,
 
     /// UI received the request for PIN and is collecting input from user.
-    PinWaiting(String),
+    ///
+    /// First element is whether we stole focus.
+    PinWaiting(bool, String),
 
     /// User submitted a PIN.
     ///
@@ -234,12 +236,17 @@ impl eframe::epi::App for App {
                     ui.add(Label::new("(waiting for PIN request)"));
                 }
                 AppState::PinRequested => {
-                    state.state = AppState::PinWaiting("".into());
+                    state.state = AppState::PinWaiting(false, "".into());
                     frame.lock().output.window_visibility = Some(true);
                     ctx.request_repaint();
                 }
-                AppState::PinWaiting(pin) => {
+                AppState::PinWaiting(focused, pin) => {
                     frame.lock().output.window_visibility = Some(true);
+
+                    if !*focused {
+                        frame.lock().output.window_focus = true;
+                        *focused = true;
+                    }
 
                     let (text_response, button_response) = ui
                         .horizontal(|ui| {

@@ -4,6 +4,8 @@
 
 (Not yet released)
 
+* The PIN prompt window now steals focus when it appears.
+
 ## 0.0.2
 
 (Released on 2022-04-21)

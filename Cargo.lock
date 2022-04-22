@@ -908,7 +908,7 @@ dependencies = [
 [[package]]
 name = "eframe"
 version = "0.17.0"
-source = "git+https://github.com/indygreg/egui?rev=1c2e7abd82a218e0b123164bd4ee750585dfd043#1c2e7abd82a218e0b123164bd4ee750585dfd043"
+source = "git+https://github.com/indygreg/egui?rev=e7f220c7e791f1f51851b9df6f43c47fed27deb9#e7f220c7e791f1f51851b9df6f43c47fed27deb9"
 dependencies = [
  "egui",
  "egui-winit",
@@ -920,7 +920,7 @@ dependencies = [
 [[package]]
 name = "egui"
 version = "0.17.0"
-source = "git+https://github.com/indygreg/egui?rev=1c2e7abd82a218e0b123164bd4ee750585dfd043#1c2e7abd82a218e0b123164bd4ee750585dfd043"
+source = "git+https://github.com/indygreg/egui?rev=e7f220c7e791f1f51851b9df6f43c47fed27deb9#e7f220c7e791f1f51851b9df6f43c47fed27deb9"
 dependencies = [
  "ahash 0.7.6",
  "epaint",
@@ -931,7 +931,7 @@ dependencies = [
 [[package]]
 name = "egui-winit"
 version = "0.17.0"
-source = "git+https://github.com/indygreg/egui?rev=1c2e7abd82a218e0b123164bd4ee750585dfd043#1c2e7abd82a218e0b123164bd4ee750585dfd043"
+source = "git+https://github.com/indygreg/egui?rev=e7f220c7e791f1f51851b9df6f43c47fed27deb9#e7f220c7e791f1f51851b9df6f43c47fed27deb9"
 dependencies = [
  "copypasta",
  "dark-light",
@@ -946,7 +946,7 @@ dependencies = [
 [[package]]
 name = "egui_glow"
 version = "0.17.0"
-source = "git+https://github.com/indygreg/egui?rev=1c2e7abd82a218e0b123164bd4ee750585dfd043#1c2e7abd82a218e0b123164bd4ee750585dfd043"
+source = "git+https://github.com/indygreg/egui?rev=e7f220c7e791f1f51851b9df6f43c47fed27deb9#e7f220c7e791f1f51851b9df6f43c47fed27deb9"
 dependencies = [
  "bytemuck",
  "egui",
@@ -963,7 +963,7 @@ dependencies = [
 [[package]]
 name = "egui_web"
 version = "0.17.0"
-source = "git+https://github.com/indygreg/egui?rev=1c2e7abd82a218e0b123164bd4ee750585dfd043#1c2e7abd82a218e0b123164bd4ee750585dfd043"
+source = "git+https://github.com/indygreg/egui?rev=e7f220c7e791f1f51851b9df6f43c47fed27deb9#e7f220c7e791f1f51851b9df6f43c47fed27deb9"
 dependencies = [
  "bytemuck",
  "egui",
@@ -996,7 +996,7 @@ dependencies = [
 [[package]]
 name = "emath"
 version = "0.17.0"
-source = "git+https://github.com/indygreg/egui?rev=1c2e7abd82a218e0b123164bd4ee750585dfd043#1c2e7abd82a218e0b123164bd4ee750585dfd043"
+source = "git+https://github.com/indygreg/egui?rev=e7f220c7e791f1f51851b9df6f43c47fed27deb9#e7f220c7e791f1f51851b9df6f43c47fed27deb9"
 dependencies = [
  "bytemuck",
 ]
@@ -1038,7 +1038,7 @@ dependencies = [
 [[package]]
 name = "epaint"
 version = "0.17.0"
-source = "git+https://github.com/indygreg/egui?rev=1c2e7abd82a218e0b123164bd4ee750585dfd043#1c2e7abd82a218e0b123164bd4ee750585dfd043"
+source = "git+https://github.com/indygreg/egui?rev=e7f220c7e791f1f51851b9df6f43c47fed27deb9#e7f220c7e791f1f51851b9df6f43c47fed27deb9"
 dependencies = [
  "ab_glyph",
  "ahash 0.7.6",
@@ -1051,7 +1051,7 @@ dependencies = [
 [[package]]
 name = "epi"
 version = "0.17.0"
-source = "git+https://github.com/indygreg/egui?rev=1c2e7abd82a218e0b123164bd4ee750585dfd043#1c2e7abd82a218e0b123164bd4ee750585dfd043"
+source = "git+https://github.com/indygreg/egui?rev=e7f220c7e791f1f51851b9df6f43c47fed27deb9#e7f220c7e791f1f51851b9df6f43c47fed27deb9"
 dependencies = [
  "egui",
  "tracing",
