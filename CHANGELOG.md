@@ -1,8 +1,12 @@
 # Project History
 
-## 0.0.2
+## 0.0.3
 
 (Not yet released)
+
+## 0.0.2
+
+(Released on 2022-04-21)
 
 * Window is hidden by default.
 * Window appears when a device unlock is needed.
