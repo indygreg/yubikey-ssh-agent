@@ -22,3 +22,10 @@ x509-certificate = "0.12"
 x509 = "0.2"
 yubikey = "0.5"
 zeroize = "1.3"
+
+[patch.crates-io]
+eframe = { git = "https://github.com/indygreg/egui", rev = "1c2e7abd82a218e0b123164bd4ee750585dfd043" }
+egui_glow = { git = "https://github.com/indygreg/egui", rev = "1c2e7abd82a218e0b123164bd4ee750585dfd043" }
+egui-winit = { git = "https://github.com/indygreg/egui", rev = "1c2e7abd82a218e0b123164bd4ee750585dfd043" }
+egui = { git = "https://github.com/indygreg/egui", rev = "1c2e7abd82a218e0b123164bd4ee750585dfd043" }
+epi = { git = "https://github.com/indygreg/egui", rev = "1c2e7abd82a218e0b123164bd4ee750585dfd043" }

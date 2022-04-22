@@ -420,11 +420,17 @@ impl SshAgent {
 
                         match yk.verify_pin(pin.unwrap().as_bytes()) {
                             Ok(()) => {
+                                self.get_state()?.pin_accepted();
                                 warn!("PIN verification successful");
                             }
                             Err(e) => {
                                 error!("PIN verification failed: {}", e);
-                                self.get_state()?.record_failed_operation();
+                                {
+                                    let mut state = self.get_state()?;
+                                    state.record_failed_operation();
+                                    state.pin_rejected();
+                                }
+
                                 continue;
                             }
                         }

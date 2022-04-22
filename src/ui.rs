@@ -13,15 +13,39 @@ use {
         fmt::{Display, Formatter},
         ops::Deref,
         sync::{Arc, Mutex},
+        time::{Duration, Instant},
     },
     zeroize::Zeroizing,
 };
 
+const HIDE_WINDOW_AFTER_OPERATION_MILLISECONDS: u64 = 3000;
+
 pub enum AppState {
+    /// Waiting for something to happen.
     Waiting,
+    /// PIN is needed.
+    ///
+    /// State when the agent requests a PIN but the UI hasn't responded yet.
     PinRequested,
+
+    /// UI received the request for PIN and is collecting input from user.
     PinWaiting(String),
+
+    /// User submitted a PIN.
+    ///
+    /// Waiting for agent to pick it up.
     PinEntered(Zeroizing<String>),
+
+    /// Agent retrieved the PIN.
+    ///
+    /// Waiting on it to post a status update.
+    PinResultPending,
+
+    /// Agent accepted a valid PIN.
+    PinAccepted(Instant),
+
+    /// Agent rejected the PIN.
+    PinRejected(Instant),
 }
 
 impl Default for AppState {
@@ -79,6 +103,19 @@ impl State {
             .request_repaint()
     }
 
+    fn schedule_repaint(&self, duration: Duration) {
+        let frame = self
+            .frame
+            .as_ref()
+            .expect("UI frame should be defined")
+            .clone();
+
+        std::thread::spawn(move || {
+            std::thread::sleep(duration);
+            frame.request_repaint();
+        });
+    }
+
     pub fn set_agent_thread(&mut self, handle: std::thread::JoinHandle<()>) {
         self.agent_thread = Some(handle);
     }
@@ -112,13 +149,31 @@ impl State {
     pub fn retrieve_pin(&mut self) -> Option<Zeroizing<String>> {
         if let AppState::PinEntered(pin) = &self.state {
             let pin = pin.clone();
-            self.state = AppState::Waiting;
+            self.state = AppState::PinResultPending;
             self.request_repaint();
 
             Some(pin)
         } else {
             None
         }
+    }
+
+    pub fn pin_accepted(&mut self) {
+        let delay = Duration::from_millis(HIDE_WINDOW_AFTER_OPERATION_MILLISECONDS);
+        let hide_time = Instant::now() + delay;
+
+        self.state = AppState::PinAccepted(hide_time);
+        self.request_repaint();
+        self.schedule_repaint(delay);
+    }
+
+    pub fn pin_rejected(&mut self) {
+        let delay = Duration::from_millis(HIDE_WINDOW_AFTER_OPERATION_MILLISECONDS);
+        let hide_time = Instant::now() + delay;
+
+        self.state = AppState::PinRejected(hide_time);
+        self.request_repaint();
+        self.schedule_repaint(delay);
     }
 
     pub fn record_failed_operation(&mut self) {
@@ -143,7 +198,7 @@ impl eframe::epi::App for App {
         state.frame = Some(frame.clone());
     }
 
-    fn update(&mut self, ctx: &Context, _frame: &Frame) {
+    fn update(&mut self, ctx: &Context, frame: &Frame) {
         let mut state = self.state.lock().expect("unable to acquire state lock");
 
         let panel = egui::CentralPanel::default();
@@ -180,9 +235,12 @@ impl eframe::epi::App for App {
                 }
                 AppState::PinRequested => {
                     state.state = AppState::PinWaiting("".into());
+                    frame.lock().output.window_visibility = Some(true);
                     ctx.request_repaint();
                 }
                 AppState::PinWaiting(pin) => {
+                    frame.lock().output.window_visibility = Some(true);
+
                     let (text_response, button_response) = ui
                         .horizontal(|ui| {
                             let text_edit = TextEdit::singleline(pin)
@@ -209,7 +267,28 @@ impl eframe::epi::App for App {
                     }
                 }
                 AppState::PinEntered(_) => {
-                    ui.add(Label::new("pin entered"));
+                    ui.add(Label::new("(waiting on agent to use PIN)"));
+                }
+                AppState::PinResultPending => {
+                    ui.add(Label::new("(waiting on PIN attempt result)"));
+                }
+                AppState::PinAccepted(hide_time) => {
+                    ui.add(Label::new("The PIN is valid!"));
+
+                    if Instant::now() >= *hide_time {
+                        state.state = AppState::Waiting;
+                        frame.lock().output.window_visibility = Some(false);
+                        ctx.request_repaint();
+                    }
+                }
+                AppState::PinRejected(hide_time) => {
+                    ui.add(Label::new("The PIN was rejected"));
+
+                    if Instant::now() >= *hide_time {
+                        state.state = AppState::Waiting;
+                        frame.lock().output.window_visibility = Some(false);
+                        ctx.request_repaint();
+                    }
                 }
             }
         });
@@ -241,6 +320,7 @@ impl Ui {
         let options = eframe::NativeOptions {
             initial_window_size: Some(egui::Vec2::new(180.0, 128.0)),
             resizable: false,
+            visible: false,
             ..eframe::NativeOptions::default()
         };
 
