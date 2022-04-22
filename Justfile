@@ -31,23 +31,24 @@ actions-macos-universal exe:
   chmod +x uploads/{{exe}}
   lipo uploads/{{exe}} -info
 
-create-zip-macos:
+macos-universal:
   MACOSX_DEPLOYMENT_TARGET=10.9 cargo build --release --target x86_64-apple-darwin
   MACOSX_DEPLOYMENT_TARGET=11.0 cargo build --release --target aarch64-apple-darwin
+  rm -rf dist/macos-universal
+  mkdir -p dist/macos-universal
+  lipo target/x86_64-apple-darwin/release/yubikey-ssh-agent target/aarch64-apple-darwin/release/yubikey-ssh-agent -create -output dist/macos-universal/yubikey-ssh-agent
+
+create-zip-macos: macos-universal
   rm -rf dist/zip
   mkdir -p dist/zip/yubikey-ssh-agent
-  lipo target/x86_64-apple-darwin/release/yubikey-ssh-agent target/aarch64-apple-darwin/release/yubikey-ssh-agent -create -output dist/zip/yubikey-ssh-agent/yubikey-ssh-agent
-  rcodesign sign --smartcard-slot 9c --code-signature-flags runtime dist/zip/yubikey-ssh-agent/yubikey-ssh-agent
+  rcodesign sign --smartcard-slot 9c --code-signature-flags runtime dist/macos-universal/yubikey-ssh-agent dist/zip/yubikey-ssh-agent/yubikey-ssh-agent
   cp LICENSE dist/zip/yubikey-ssh-agent/
   (cd dist/zip && zip -r yubikey-ssh-agent-macos.zip yubikey-ssh-agent)
 
-create-bundle:
-  MACOSX_DEPLOYMENT_TARGET=10.9 cargo build --release --target x86_64-apple-darwin
-  MACOSX_DEPLOYMENT_TARGET=11.0 cargo build --release --target aarch64-apple-darwin
-  rm -rf dist
-  mkdir -p dist/stage/Contents/MacOS
-  lipo target/x86_64-apple-darwin/release/yubikey-ssh-agent target/aarch64-apple-darwin/release/yubikey-ssh-agent -create -output dist/stage/Contents/MacOS/yubikey-ssh-agent
-  cp Info.plist dist/stage/Contents/Info.plist
+create-bundle: macos-universal
+  rm -rf dist/bundle.stage/Contents/MacOS
+  cp dist/macos-universal/yubikey-ssh-agent/Contents/MacOS/yubikey-ssh-agent
+  cp Info.plist dist/bundle.stage/Contents/Info.plist
   mkdir dist/bundle.unsigned
-  mv dist/stage dist/bundle.unsigned/YubiKey\ SSH\ Agent.app
+  mv dist/bundle.stage dist/bundle.unsigned/YubiKey\ SSH\ Agent.app
   rcodesign sign --smartcard-slot 9c --code-signature-flags runtime dist/bundle.unsigned/YubiKey\ SSH\ Agent.app dist/YubiKey\ SSH\ Agent.app
