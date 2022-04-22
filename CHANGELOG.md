@@ -6,6 +6,7 @@
 
 * The PIN prompt window now steals focus when it appears.
 * Window decorations are restored (enables moving window again).
+* Added a button to the GUI to deny PIN entry.
 
 ## 0.0.2
 

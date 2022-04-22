@@ -17,7 +17,7 @@
 pub mod ui;
 
 use {
-    crate::ui::{AuthenticationState, State},
+    crate::ui::{AuthenticationState, PinEntry, State},
     clap::{ArgGroup, Parser},
     log::{error, info, warn},
     rsa::PublicKeyParts,
@@ -405,8 +405,22 @@ impl SshAgent {
                         let pin;
 
                         loop {
-                            if let Some(value) = self.get_state()?.retrieve_pin() {
-                                pin = Some(value);
+                            // Need to bind to a local to avoid recursive state lock.
+                            let entry = self.get_state()?.retrieve_pin();
+                            if let Some(entry) = entry {
+                                match entry {
+                                    PinEntry::Pin(value) => {
+                                        pin = Some(value);
+                                    }
+                                    PinEntry::Denied => {
+                                        warn!("user denied PIN entry");
+                                        let mut state = self.get_state()?;
+                                        state.record_failed_operation();
+                                        state.pin_rejected();
+                                        return Err(Error::SmartcardFailedAuthentication);
+                                    }
+                                }
+
                                 break;
                             }
 

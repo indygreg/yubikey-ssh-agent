@@ -38,6 +38,9 @@ pub enum AppState {
     /// Waiting for agent to pick it up.
     PinEntered(Zeroizing<String>),
 
+    /// User denied request to enter PIN.
+    PinEntryDenied,
+
     /// Agent retrieved the PIN.
     ///
     /// Waiting on it to post a status update.
@@ -76,6 +79,11 @@ impl Default for AuthenticationState {
     fn default() -> Self {
         Self::Unknown
     }
+}
+
+pub enum PinEntry {
+    Pin(Zeroizing<String>),
+    Denied,
 }
 
 #[derive(Default)]
@@ -148,15 +156,22 @@ impl State {
     }
 
     /// Retrieve the collected pin.
-    pub fn retrieve_pin(&mut self) -> Option<Zeroizing<String>> {
-        if let AppState::PinEntered(pin) = &self.state {
-            let pin = pin.clone();
-            self.state = AppState::PinResultPending;
-            self.request_repaint();
+    pub fn retrieve_pin(&mut self) -> Option<PinEntry> {
+        match &self.state {
+            AppState::PinEntered(pin) => {
+                let pin = pin.clone();
+                self.state = AppState::PinResultPending;
+                self.request_repaint();
 
-            Some(pin)
-        } else {
-            None
+                Some(PinEntry::Pin(pin))
+            }
+            AppState::PinEntryDenied => {
+                self.state = AppState::PinResultPending;
+                self.request_repaint();
+
+                Some(PinEntry::Denied)
+            }
+            _ => None,
         }
     }
 
@@ -248,7 +263,7 @@ impl eframe::epi::App for App {
                         *focused = true;
                     }
 
-                    let (text_response, button_response) = ui
+                    let (text_response, unlock_response, deny_response) = ui
                         .horizontal(|ui| {
                             let text_edit = TextEdit::singleline(pin)
                                 .password(true)
@@ -256,17 +271,21 @@ impl eframe::epi::App for App {
                                 .desired_width(40.0);
 
                             let text = ui.add(text_edit);
-                            let button = ui.button("Unlock");
+                            let unlock = ui.button("Unlock");
+                            let deny = ui.button("Deny");
 
-                            (text, button)
+                            (text, unlock, deny)
                         })
                         .inner;
 
                     let pin_entered = (text_response.lost_focus()
                         && ui.input().key_pressed(egui::Key::Enter))
-                        || button_response.clicked();
+                        || unlock_response.clicked();
 
-                    if pin_entered {
+                    if deny_response.clicked() {
+                        state.state = AppState::PinEntryDenied;
+                        ctx.request_repaint();
+                    } else if pin_entered {
                         state.state = AppState::PinEntered(Zeroizing::new(pin.clone()));
                         ctx.request_repaint();
                     } else {
@@ -275,6 +294,9 @@ impl eframe::epi::App for App {
                 }
                 AppState::PinEntered(_) => {
                     ui.add(Label::new("(waiting on agent to use PIN)"));
+                }
+                AppState::PinEntryDenied => {
+                    ui.add(Label::new("(waiting on agent to see PIN refusal)"));
                 }
                 AppState::PinResultPending => {
                     ui.add(Label::new("(waiting on PIN attempt result)"));
