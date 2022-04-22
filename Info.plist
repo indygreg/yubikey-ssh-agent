@@ -11,6 +11,6 @@
     <key>CFBundleSignature</key>
     <string>YKSA</string>
     <key>CFBundleExecutable</key>
-    <string>yubikey-ssh-agent</string>
+    <string>YubiKey SSH Agent</string>
 </dict>
 </plist>
