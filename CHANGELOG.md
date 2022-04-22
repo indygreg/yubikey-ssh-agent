@@ -6,6 +6,7 @@
 
 * Added a status bar icon on macOS. It has a menu exposing state and
   allows you to exit the application.
+* Removed support for binding agent to a TCP address.
 
 ## 0.0.3
 

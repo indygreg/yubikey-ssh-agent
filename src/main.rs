@@ -19,7 +19,7 @@ pub mod ui;
 
 use {
     crate::agent::SshAgent,
-    clap::{ArgGroup, Parser},
+    clap::Parser,
     log::{error, warn},
     ssh_agent::Agent,
     std::{path::PathBuf, str::FromStr, thread},
@@ -116,19 +116,10 @@ pub enum Error {
 ///
 #[derive(Parser)]
 #[clap(arg_required_else_help(true))]
-#[clap(group(
-            ArgGroup::new("bind")
-                .required(true)
-                .args(&["socket", "tcp"]),
-        ))]
 struct Cli {
     /// Path to UNIX domain socket to bind to.
     #[clap(long)]
     socket: Option<PathBuf>,
-
-    /// TCP address:port to bind to.
-    #[clap(long)]
-    tcp: Option<String>,
 
     /// YubiKey key slot to use.
     #[clap(default_value = "9a", long)]
@@ -157,26 +148,24 @@ fn main() {
     let slot = SlotId::from_str(&cli.slot).expect("illegal slot value; try 9a");
     warn!("using slot {:?}", slot);
 
+    let socket_path = cli.socket.expect("argument parsing bug");
+
+    if socket_path.exists() {
+        std::fs::remove_file(&socket_path).unwrap();
+    }
+
+    warn!("To use this agent process:");
+    warn!("export SSH_AUTH_SOCK={}", socket_path.display());
+
     let ui = crate::ui::Ui::new();
     let state = ui.state();
 
     let agent = SshAgent::new(slot, state.clone());
 
-    let agent_thread = thread::spawn(|| {
-        if let Some(path) = cli.socket {
-            if path.exists() {
-                std::fs::remove_file(&path).unwrap();
-            }
-
-            warn!("To use this agent process:");
-            warn!("export SSH_AUTH_SOCK={}", path.display());
-
-            agent.run_unix(&path).expect("agent should exit cleanly")
-        } else if let Some(address) = cli.tcp {
-            agent.run_tcp(&address).expect("agent should exit cleanly")
-        } else {
-            panic!("argument parsing bug");
-        }
+    let agent_thread = thread::spawn(move || {
+        agent
+            .run_unix(&socket_path)
+            .expect("agent should exit cleanly");
     });
 
     state
