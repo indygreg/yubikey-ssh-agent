@@ -37,11 +37,13 @@ macos-universal:
   rm -rf dist/macos-universal
   mkdir -p dist/macos-universal
   lipo target/x86_64-apple-darwin/release/yubikey-ssh-agent target/aarch64-apple-darwin/release/yubikey-ssh-agent -create -output dist/macos-universal/yubikey-ssh-agent
+  chmod +x dist/macos-universal/yubikey-ssh-agent
 
 create-zip-macos: macos-universal
   rm -rf dist/zip
   mkdir -p dist/zip/yubikey-ssh-agent
   rcodesign sign --smartcard-slot 9c --code-signature-flags runtime dist/macos-universal/yubikey-ssh-agent dist/zip/yubikey-ssh-agent/yubikey-ssh-agent
+  chmod +x dist/zip/yubikey-ssh-agent/yubikey-ssh-agent
   cp LICENSE dist/zip/yubikey-ssh-agent/
   (cd dist/zip && zip -r yubikey-ssh-agent-macos.zip yubikey-ssh-agent)
 
