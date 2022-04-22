@@ -18,6 +18,22 @@ use {
     zeroize::Zeroizing,
 };
 
+#[cfg(target_os = "macos")]
+use {
+    cocoa::{
+        appkit::{
+            NSApp, NSApplication, NSButton, NSImage, NSMenu, NSMenuItem, NSSquareStatusItemLength,
+            NSStatusBar, NSStatusItem,
+        },
+        base::{id, nil, NO, YES},
+    },
+    cocoa_foundation::foundation::{NSAutoreleasePool, NSData, NSSize, NSString},
+    objc::{msg_send, runtime::Sel, sel, sel_impl},
+    std::{ffi::c_void, ptr::null},
+};
+
+const STATUS_BAR_ICON: &[u8] = include_bytes!("key.png");
+
 const HIDE_WINDOW_AFTER_OPERATION_MILLISECONDS: u64 = 3000;
 
 pub enum AppState {
@@ -204,8 +220,118 @@ impl State {
     }
 }
 
+trait Tray {
+    fn new() -> Self;
+
+    fn reflect_state(&self, state: &State);
+}
+
+pub struct SystemTray {
+    #[cfg(target_os = "macos")]
+    status_bar: id,
+    #[cfg(target_os = "macos")]
+    menu: id,
+    #[cfg(target_os = "macos")]
+    device_state_item: id,
+    #[cfg(target_os = "macos")]
+    auth_state_item: id,
+}
+
+#[cfg(target_os = "macos")]
+impl Tray for SystemTray {
+    fn new() -> Self {
+        unsafe {
+            let app = NSApp();
+            app.activateIgnoringOtherApps_(YES);
+
+            let status_bar = NSStatusBar::systemStatusBar(nil)
+                .autorelease()
+                .statusItemWithLength_(NSSquareStatusItemLength);
+
+            let title = NSString::alloc(nil).init_str("YubiKey SSH Agent");
+            status_bar.setTitle_(title);
+
+            let icon = status_bar.button();
+            let icon_data = NSData::dataWithBytes_length_(
+                nil,
+                STATUS_BAR_ICON.as_ptr() as *const c_void,
+                STATUS_BAR_ICON.len() as u64,
+            );
+            let icon_image = NSImage::initWithData_(NSImage::alloc(nil), icon_data);
+            let icon_size = NSSize::new(18.0, 18.0);
+            icon.setImage_(icon_image);
+            let _: () = msg_send![icon_image, setSize: icon_size];
+            let _: () = msg_send![icon_image, setTemplate: NO];
+
+            let menu = NSMenu::new(nil).autorelease();
+
+            let device_state_item = NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
+                NSString::alloc(nil).init_str("(Unknown Device State)"),
+                Sel::from_ptr(null()),
+                NSString::alloc(nil).init_str(""),
+            );
+            menu.addItem_(device_state_item);
+
+            let auth_state_item = NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
+                NSString::alloc(nil).init_str("(Unknown Authentication State)"),
+                Sel::from_ptr(null()),
+                NSString::alloc(nil).init_str(""),
+            );
+            menu.addItem_(auth_state_item);
+
+            menu.addItem_(NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
+                NSString::alloc(nil).init_str("Quit"),
+                sel!(terminate:),
+                NSString::alloc(nil).init_str(""),
+            ));
+
+            status_bar.setMenu_(menu);
+
+            Self {
+                status_bar,
+                menu,
+                device_state_item,
+                auth_state_item,
+            }
+        }
+    }
+
+    fn reflect_state(&self, state: &State) {
+        let (device_title, auth_title) = if state.session_opened {
+            let device = "YubiKey Active";
+
+            let auth = match state.auth_state {
+                AuthenticationState::Unknown => "Unknown Key Lock State",
+                AuthenticationState::Authenticated => "Key Unlocked",
+                AuthenticationState::Unauthenticated => "Key Locked",
+            };
+
+            (device, auth)
+        } else {
+            ("YubiKey Inactive", "Key Not Available")
+        };
+
+        unsafe {
+            self.device_state_item
+                .setTitle_(NSString::alloc(nil).init_str(device_title));
+            self.auth_state_item
+                .setTitle_(NSString::alloc(nil).init_str(auth_title))
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+impl Tray for SystemTray {
+    fn new() -> Self {
+        Self {}
+    }
+
+    fn reflect_state(&self, state: &State) {}
+}
+
 pub struct App {
     state: Arc<Mutex<State>>,
+    tray: SystemTray,
 }
 
 impl eframe::epi::App for App {
@@ -217,6 +343,8 @@ impl eframe::epi::App for App {
 
     fn update(&mut self, ctx: &Context, frame: &Frame) {
         let mut state = self.state.lock().expect("unable to acquire state lock");
+
+        self.tray.reflect_state(&state);
 
         let panel = egui::CentralPanel::default();
 
@@ -334,9 +462,12 @@ pub struct Ui {
 
 impl Ui {
     pub fn new() -> Self {
+        let tray = SystemTray::new();
+
         Self {
             app: App {
                 state: Arc::new(Mutex::new(State::default())),
+                tray,
             },
         }
     }

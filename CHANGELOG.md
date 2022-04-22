@@ -1,5 +1,12 @@
 # Project History
 
+## 0.0.4
+
+(Not yet released)
+
+* Added a status bar icon on macOS. It has a menu exposing state and
+  allows you to exit the application.
+
 ## 0.0.3
 
 (Released on 2022-04-21)
