@@ -20,6 +20,7 @@ pub mod ui;
 use {
     crate::agent::SshAgent,
     clap::Parser,
+    directories::ProjectDirs,
     log::{error, warn},
     ssh_agent::Agent,
     std::{path::PathBuf, str::FromStr, thread},
@@ -115,7 +116,6 @@ pub enum Error {
 /// to the current user by default.)
 ///
 #[derive(Parser)]
-#[clap(arg_required_else_help(true))]
 struct Cli {
     /// Path to UNIX domain socket to bind to.
     #[clap(long)]
@@ -143,19 +143,28 @@ fn main() {
 
     supplement_notifications().unwrap();
 
+    let project_dir = ProjectDirs::from("com.gregoryszorc", "", "yubikey-ssh-agent")
+        .expect("could not determine project directory");
+
+    let data_dir = project_dir.data_local_dir();
+
+    let default_socket_path = data_dir.join("agent.sock");
+
     let cli = Cli::parse();
 
     let slot = SlotId::from_str(&cli.slot).expect("illegal slot value; try 9a");
     warn!("using slot {:?}", slot);
 
-    let socket_path = cli.socket.expect("argument parsing bug");
+    let socket_path = cli.socket.unwrap_or(default_socket_path);
+    warn!("using socket {}", socket_path.display());
+
+    if let Some(parent) = socket_path.parent() {
+        std::fs::create_dir_all(parent).expect("unable to create directory for socket");
+    }
 
     if socket_path.exists() {
         std::fs::remove_file(&socket_path).unwrap();
     }
-
-    warn!("To use this agent process:");
-    warn!("export SSH_AUTH_SOCK={}", socket_path.display());
 
     let ui = crate::ui::Ui::new();
     let state = ui.state();

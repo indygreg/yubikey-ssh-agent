@@ -9,6 +9,7 @@ readme = "README.md"
 [dependencies]
 base64 = "0.13"
 clap = { version = "3.1", features = ["derive"] }
+directories = "4.0"
 egui = "0.17"
 eframe = "0.17"
 env_logger = "0.9"

@@ -7,6 +7,8 @@
 * Added a status bar icon on macOS. It has a menu exposing state and
   allows you to exit the application.
 * Removed support for binding agent to a TCP address.
+* `--socket` argument is no longer required and the application will bind
+  to a socket in a default path by default.
 
 ## 0.0.3
 

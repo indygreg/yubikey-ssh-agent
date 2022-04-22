@@ -10,17 +10,17 @@ https://github.com/indygreg/yubikey-ssh-agent.
 
 First, start up the agent:
 
-    $ yubikey-ssh-agent --socket /tmp/yubikey-ssh.sock
+    $ yubikey-ssh-agent
 
 Then, tell SSH how to use it:
 
-    $ export SSH_AUTH_SOCK=/tmp/yubikey-ssh.sock
+    $ export SSH_AUTH_SOCK="~/Library/Application Support/com.gregoryszorc.yubikey-ssh-agent/agent.sock"
 
 To make this change permanent, you'll want something like this at the
 top of your `~/.ssh/config`:
 
     Host *
-        IdentityAgent /tmp/yubikey-ssh.sock
+        IdentityAgent "~/Library/Application Support/com.gregoryszorc.yubikey-ssh-agent/agent.sock"
 
 Then perform an SSH operation needing the private key on your YubiKey:
 
