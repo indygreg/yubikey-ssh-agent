@@ -48,11 +48,10 @@ create-zip-macos: macos-universal
   (cd dist/zip && zip -r yubikey-ssh-agent-macos.zip yubikey-ssh-agent)
 
 create-bundle: macos-universal
-  rm -rf dist/bundle.stage
+  rm -rf dist/bundle.stage dist/bundle.unsigned dist/YubiKey\ SSH\ Agent.app
   mkdir -p dist/bundle.stage/Contents/MacOS
   cp dist/macos-universal/yubikey-ssh-agent dist/bundle.stage/Contents/MacOS/YubiKey\ SSH\ Agent
   cp Info.plist dist/bundle.stage/Contents/Info.plist
-  rm -rf dist/bundle.unsigned
   mkdir dist/bundle.unsigned
   mv dist/bundle.stage dist/bundle.unsigned/YubiKey\ SSH\ Agent.app
   rcodesign sign --smartcard-slot 9c --code-signature-flags runtime dist/bundle.unsigned/YubiKey\ SSH\ Agent.app dist/YubiKey\ SSH\ Agent.app
