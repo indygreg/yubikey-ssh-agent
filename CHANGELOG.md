@@ -5,6 +5,7 @@
 (Not yet released)
 
 * The PIN prompt window now steals focus when it appears.
+* Window decorations are restored (enables moving window again).
 
 ## 0.0.2
 
