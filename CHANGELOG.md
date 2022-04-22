@@ -2,7 +2,7 @@
 
 ## 0.0.3
 
-(Not yet released)
+(Released on 2022-04-21)
 
 * The PIN prompt window now steals focus when it appears.
 * Window decorations are restored (enables moving window again).
