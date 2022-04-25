@@ -2,7 +2,7 @@
 
 ## 0.0.5
 
-(Not yet released)
+(Released on 2022-04-25)
 
 * Removed notifications. With the PIN prompt window being hidden by
   default and being very visible when it appears, we don't believe
