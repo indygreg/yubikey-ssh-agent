@@ -16,14 +16,14 @@ application to your `Applications` folder in Finder. Then launch
 it by double clicking the app icon. You should see a key/lock
 appear in your system tray at the top of the screen.
 
-On other machines, simply run `yubikey-ssh-agent` to start the
-process.
+On other operating systems, simply run `yubikey-ssh-agent` to start
+the process.
 
 Then, tell SSH how to use it:
 
     $ export SSH_AUTH_SOCK="~/Library/Application Support/com.gregoryszorc.yubikey-ssh-agent/agent.sock"
 
-To make this change permanent, you'll want something like this at the
+**To make this change permanent**, you'll want something like this at the
 top of your `~/.ssh/config`:
 
     Host *
@@ -41,9 +41,6 @@ for public key lookups and cryptographic signing operations.
 
 The process provides a minimal GUI displaying current state and
 provides a mechanism for inputting the PIN to unlock the YubiKey.
-
-System notifications are displayed when the YubiKey needs to be
-unlocked by entering a PIN.
 
 ## Advantages Over Normal SSH Agent
 
