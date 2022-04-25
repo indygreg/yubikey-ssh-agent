@@ -8,16 +8,19 @@ https://github.com/indygreg/yubikey-ssh-agent.
 
 ## Usage
 
+**The agent is only well tested on macOS. It may work on Linux, but that's
+not the focus of development at the moment.**
+
 Obtain a pre-built release from https://github.com/indygreg/yubikey-ssh-agent/releases
 or compile your own via `cargo build`.
 
-On macOS, download the zip file and drag the `YubiKey SSH Agent`
-application to your `Applications` folder in Finder. Then launch
-it by double clicking the app icon. You should see a key/lock
-appear in your system tray at the top of the screen.
+Extract the zip file and drag the `YubiKey SSH Agent` application
+to your `Applications` folder in Finder.
 
-On other operating systems, simply run `yubikey-ssh-agent` to start
-the process.
+Launch the application by double clicking or running
+`open "/Applications/YubiKey SSH Agent.app"` from the terminal.
+You should see a key/lock appear in your system tray at the top of
+the screen.
 
 Then, tell SSH how to use it:
 
@@ -32,6 +35,10 @@ top of your `~/.ssh/config`:
 Then perform an SSH operation needing the private key on your YubiKey:
 
     $ ssh git@github.com
+
+**The application does not yet persist across logouts or restarts.
+You will need to launch the application whenever you log in.** This
+will be fixed in a future release.
 
 ## Features
 
