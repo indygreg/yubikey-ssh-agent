@@ -79,11 +79,10 @@ to unlock it, before failing the SSH operation.**
 This SSH agent makes the assumption that the YubiKey is the provider of
 SSH keys. Therefore, when there is a request for available keys or a
 signature request, it can be very vocal about raising an error (through
-its own GUI or OS notifications) when user interaction is needed. For
-example, if SSH wants to perform a cryptographic signature but the YubiKey
-is locked, this agent will show you a system notification that the YubiKey
-PIN needs to be entered and the SSH agent will wait for you to unlock the
-YubiKey before failing the SSH attempt.
+its own GUI) when user interaction is needed. For example, if SSH wants
+to perform a cryptographic signature but the YubiKey is locked, this agent
+will open a modal window requesting the YubiKey PIN and the SSH agent will
+wait for you to unlock the YubiKey before failing the SSH attempt.
 
 ### Security Advantages
 
