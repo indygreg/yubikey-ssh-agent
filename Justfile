@@ -54,7 +54,7 @@ create-zip-macos: macos-universal
 create-bundle: macos-universal
   rm -rf dist/bundle.stage dist/bundle.unsigned dist/YubiKey\ SSH\ Agent.app
   mkdir -p dist/bundle.stage/Contents/MacOS
-  cp dist/macos-universal/yubikey-ssh-agent dist/bundle.stage/Contents/MacOS/YubiKey\ SSH\ Agent
+  cp dist/macos-universal/yubikey-ssh-agent dist/bundle.stage/Contents/MacOS/
   cp Info.plist dist/bundle.stage/Contents/Info.plist
   mkdir dist/bundle.unsigned
   mv dist/bundle.stage dist/bundle.unsigned/YubiKey\ SSH\ Agent.app

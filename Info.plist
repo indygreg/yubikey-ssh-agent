@@ -9,13 +9,21 @@
     <key>CFBundleVersion</key>
     <string>0.0.4</string>
     <key>CFBundleSignature</key>
-    <string>YKSA</string>
+    <string>????</string>
     <key>CFBundleExecutable</key>
-    <string>YubiKey SSH Agent</string>
+    <string>yubikey-ssh-agent</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
     <key>CFBundlePackageType</key>
-    <string>BNDL</string>
+    <string>APPL</string>
+    <key>CFBundleSupportedPlatforms</key>
+    <array>
+      <string>MacOSX</string>
+    </array>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.developer-tools</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>10.9</string>
     <key>LSUIElement</key>
     <true/>
 </dict>
