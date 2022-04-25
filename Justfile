@@ -66,3 +66,6 @@ create-bundle: macos-universal
 
 notarize-bundle: create-bundle
   rcodesign notarize --staple --api-issuer 254e4e96-2b8b-43c1-b385-286bdad51dba --api-key 8RXL6MN9WV dist/YubiKey\ SSH\ Agent.app
+
+create-release-bundle: notarize-bundle
+  (cd dist && zip -r yubikey-ssh-agent-macos-app.zip "YubiKey SSH Agent.app")
