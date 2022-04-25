@@ -34,3 +34,4 @@ egui_glow = { git = "https://github.com/indygreg/egui", rev = "e7f220c7e791f1f51
 egui-winit = { git = "https://github.com/indygreg/egui", rev = "e7f220c7e791f1f51851b9df6f43c47fed27deb9" }
 egui = { git = "https://github.com/indygreg/egui", rev = "e7f220c7e791f1f51851b9df6f43c47fed27deb9" }
 epi = { git = "https://github.com/indygreg/egui", rev = "e7f220c7e791f1f51851b9df6f43c47fed27deb9" }
+winit = { git = "https://github.com/indygreg/winit", rev = "65aa338da3d87db54316d59e22d851aa8cc85cdb" }

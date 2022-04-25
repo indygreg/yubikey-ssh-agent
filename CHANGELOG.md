@@ -1,5 +1,11 @@
 # Project History
 
+## 0.0.6
+
+(Released on 2022-04-25)
+
+* Application icon no longer appears in macOS dock.
+
 ## 0.0.5
 
 (Released on 2022-04-25)
