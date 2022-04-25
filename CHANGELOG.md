@@ -1,5 +1,14 @@
 # Project History
 
+## 0.0.5
+
+(Not yet released)
+
+* Removed notifications. With the PIN prompt window being hidden by
+  default and being very visible when it appears, we don't believe
+  notifications are providing any meaningful value. So they have
+  been removed.
+
 ## 0.0.4
 
 (Released on 2022-04-25)

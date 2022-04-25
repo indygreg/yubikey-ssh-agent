@@ -33,9 +33,6 @@ pub enum Error {
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
-    #[error("notify error: {0}")]
-    Notify(#[from] notify_rust::error::Error),
-
     #[error("SSH protocol error: {0}")]
     Proto(#[from] ssh_agent::proto::ProtoError),
 
@@ -126,22 +123,8 @@ struct Cli {
     slot: String,
 }
 
-#[cfg(target_os = "macos")]
-fn supplement_notifications() -> Result<(), Error> {
-    let identifier = notify_rust::get_bundle_identifier_or_default("yubikey-ssh-agent");
-    notify_rust::set_application(&identifier).expect("unable to set notifying application");
-    Ok(())
-}
-
-#[cfg(not(target_os = "macos"))]
-fn supplement_notifications() -> Result<(), Error> {
-    Ok(())
-}
-
 fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-
-    supplement_notifications().unwrap();
 
     let project_dir = ProjectDirs::from("com.gregoryszorc", "", "yubikey-ssh-agent")
         .expect("could not determine project directory");

@@ -14,7 +14,6 @@ egui = "0.17"
 eframe = "0.17"
 env_logger = "0.9"
 log = "0.4"
-notify-rust = "4.5"
 rsa = "0.5"
 ssh-agent = { version = "0.2", features = ["agent"] }
 ssh-key = { version = "0.4", features = ["alloc", "ecdsa"] }

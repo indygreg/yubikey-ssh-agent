@@ -8,7 +8,6 @@ use {
     crate::Error,
     eframe::epi::{Frame, Storage},
     egui::{Color32, Context, Label, TextEdit},
-    notify_rust::Notification,
     std::{
         fmt::{Display, Formatter},
         ops::Deref,
@@ -161,12 +160,6 @@ impl State {
     pub fn request_pin(&mut self) -> Result<(), Error> {
         self.state = AppState::PinRequested;
         self.request_repaint();
-
-        Notification::new()
-            .summary("YubiKey pin needed")
-            .body("SSH is requesting you to unlock your YubiKey")
-            .timeout(5000)
-            .show()?;
 
         Ok(())
     }
