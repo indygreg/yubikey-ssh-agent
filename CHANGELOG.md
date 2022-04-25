@@ -8,6 +8,8 @@
   default and being very visible when it appears, we don't believe
   notifications are providing any meaningful value. So they have
   been removed.
+* macOS application is now distributed as a bundle, not a standalone
+  executable.
 
 ## 0.0.4
 
