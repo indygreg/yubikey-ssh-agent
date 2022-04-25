@@ -42,7 +42,11 @@ macos-universal:
 create-zip-macos: macos-universal
   rm -rf dist/zip
   mkdir -p dist/zip/yubikey-ssh-agent
-  rcodesign sign --smartcard-slot 9c --code-signature-flags runtime dist/macos-universal/yubikey-ssh-agent dist/zip/yubikey-ssh-agent/yubikey-ssh-agent
+  rcodesign sign \
+    --smartcard-slot 9c \
+    --code-signature-flags runtime \
+    dist/macos-universal/yubikey-ssh-agent \
+    dist/zip/yubikey-ssh-agent/yubikey-ssh-agent
   chmod +x dist/zip/yubikey-ssh-agent/yubikey-ssh-agent
   cp LICENSE dist/zip/yubikey-ssh-agent/
   (cd dist/zip && zip -r yubikey-ssh-agent-macos.zip yubikey-ssh-agent)
@@ -54,7 +58,11 @@ create-bundle: macos-universal
   cp Info.plist dist/bundle.stage/Contents/Info.plist
   mkdir dist/bundle.unsigned
   mv dist/bundle.stage dist/bundle.unsigned/YubiKey\ SSH\ Agent.app
-  rcodesign sign --smartcard-slot 9c --code-signature-flags runtime dist/bundle.unsigned/YubiKey\ SSH\ Agent.app dist/YubiKey\ SSH\ Agent.app
+  rcodesign sign \
+    --smartcard-slot 9c \
+    --code-signature-flags runtime \
+    dist/bundle.unsigned/YubiKey\ SSH\ Agent.app \
+    dist/YubiKey\ SSH\ Agent.app
 
 notarize-bundle: create-bundle
   rcodesign notarize --staple --api-issuer 254e4e96-2b8b-43c1-b385-286bdad51dba --api-key 8RXL6MN9WV dist/YubiKey\ SSH\ Agent.app
