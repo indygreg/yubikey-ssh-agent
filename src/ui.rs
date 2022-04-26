@@ -6,7 +6,7 @@
 
 use {
     crate::Error,
-    eframe::epi::{Frame, Storage},
+    eframe::epi::{App, Frame, Storage},
     egui::{Color32, Context, Label, TextEdit},
     std::{
         fmt::{Display, Formatter},
@@ -322,12 +322,12 @@ impl Tray for SystemTray {
     fn reflect_state(&self, state: &State) {}
 }
 
-pub struct App {
+pub struct Ui {
     state: Arc<Mutex<State>>,
     tray: SystemTray,
 }
 
-impl eframe::epi::App for App {
+impl App for Ui {
     fn setup(&mut self, _ctx: &egui::Context, frame: &Frame, _storage: Option<&dyn Storage>) {
         let mut state = self.state.lock().expect("unable to lock state");
 
@@ -449,7 +449,7 @@ impl eframe::epi::App for App {
     }
 }
 
-impl App {
+impl Ui {
     pub fn new() -> Self {
         let tray = SystemTray::new();
 

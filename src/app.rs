@@ -7,7 +7,7 @@
 use {
     crate::{
         agent::SshAgent,
-        ui::{App as Ui, State},
+        ui::{State, Ui},
     },
     ssh_agent::Agent,
     std::{
