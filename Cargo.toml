@@ -11,8 +11,10 @@ base64 = "0.13"
 clap = { version = "3.1", features = ["derive"] }
 directories = "4.0"
 egui = { git = "https://github.com/indygreg/egui", rev = "e5b9d8443f359c716843e28e3ed0a8d85b8a3ec4" }
+egui_glow = { git = "https://github.com/indygreg/egui", rev = "e5b9d8443f359c716843e28e3ed0a8d85b8a3ec4" }
 egui-winit = { git = "https://github.com/indygreg/egui", rev = "e5b9d8443f359c716843e28e3ed0a8d85b8a3ec4" }
 eframe = { git = "https://github.com/indygreg/egui", rev = "e5b9d8443f359c716843e28e3ed0a8d85b8a3ec4" }
+epi = { git = "https://github.com/indygreg/egui", rev = "e5b9d8443f359c716843e28e3ed0a8d85b8a3ec4" }
 env_logger = "0.9"
 glow = "0.11"
 glutin = "0.28"

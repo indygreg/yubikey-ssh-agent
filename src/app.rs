@@ -63,9 +63,9 @@ impl App {
             ..eframe::NativeOptions::default()
         };
 
-        eframe::run_native(
+        crate::ui::run_app(
             "YubiKey SSH Agent",
-            options,
+            &options,
             Box::new(|cc| {
                 let ui = self.ui;
                 ui.setup(cc.egui_ctx.clone());
