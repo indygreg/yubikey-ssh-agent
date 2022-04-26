@@ -449,35 +449,17 @@ impl eframe::epi::App for App {
     }
 }
 
-pub struct Ui {
-    app: App,
-}
-
-impl Ui {
+impl App {
     pub fn new() -> Self {
         let tray = SystemTray::new();
 
         Self {
-            app: App {
-                state: Arc::new(Mutex::new(State::default())),
-                tray,
-            },
+            state: Arc::new(Mutex::new(State::default())),
+            tray,
         }
     }
 
-    pub fn state(&self) -> Arc<Mutex<State>> {
-        self.app.state.clone()
-    }
-
-    pub fn run(self) {
-        let options = eframe::NativeOptions {
-            always_on_top: true,
-            initial_window_size: Some(egui::Vec2::new(180.0, 128.0)),
-            resizable: false,
-            visible: false,
-            ..eframe::NativeOptions::default()
-        };
-
-        eframe::run_native(Box::new(self.app), options);
+    pub fn get_state(&self) -> Arc<Mutex<State>> {
+        self.state.clone()
     }
 }

@@ -15,15 +15,14 @@
 //! The agent automatically exposes keys in PIV slots in YubiKeys.
 
 pub mod agent;
+pub mod app;
 pub mod ui;
 
 use {
-    crate::agent::SshAgent,
     clap::Parser,
     directories::ProjectDirs,
     log::{error, warn},
-    ssh_agent::Agent,
-    std::{path::PathBuf, str::FromStr, thread},
+    std::{path::PathBuf, str::FromStr},
     thiserror::Error,
     yubikey::{piv::SlotId, Error as YkError},
 };
@@ -141,31 +140,6 @@ fn main() {
     let socket_path = cli.socket.unwrap_or(default_socket_path);
     warn!("using socket {}", socket_path.display());
 
-    if let Some(parent) = socket_path.parent() {
-        std::fs::create_dir_all(parent).expect("unable to create directory for socket");
-    }
-
-    if socket_path.exists() {
-        std::fs::remove_file(&socket_path).unwrap();
-    }
-
-    let ui = crate::ui::Ui::new();
-    let state = ui.state();
-
-    let agent = SshAgent::new(slot, state.clone());
-
-    let agent_thread = thread::spawn(move || {
-        agent
-            .run_unix(&socket_path)
-            .expect("agent should exit cleanly");
-    });
-
-    state
-        .lock()
-        .expect("should be able to get state")
-        .set_agent_thread(agent_thread);
-
-    // The event loop needs to run on the main thread (at least on macOS).
-    // And the agent also runs indefinitely.
-    ui.run();
+    let app = crate::app::App::new();
+    app.run(slot, socket_path)
 }
