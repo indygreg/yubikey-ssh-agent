@@ -10,14 +10,18 @@ readme = "README.md"
 base64 = "0.13"
 clap = { version = "3.1", features = ["derive"] }
 directories = "4.0"
-egui = "0.17"
-eframe = "0.17"
+egui = { git = "https://github.com/indygreg/egui", rev = "e5b9d8443f359c716843e28e3ed0a8d85b8a3ec4" }
+egui-winit = { git = "https://github.com/indygreg/egui", rev = "e5b9d8443f359c716843e28e3ed0a8d85b8a3ec4" }
+eframe = { git = "https://github.com/indygreg/egui", rev = "e5b9d8443f359c716843e28e3ed0a8d85b8a3ec4" }
 env_logger = "0.9"
+glow = "0.11"
+glutin = "0.28"
 log = "0.4"
 rsa = "0.5"
 ssh-agent = { version = "0.2", features = ["agent"] }
 ssh-key = { version = "0.4", features = ["alloc", "ecdsa"] }
 thiserror = "1.0"
+winit = { git = "https://github.com/rust-windowing/winit", rev = "ce890c34551d9fb542f10dcb644d22d382e0c921" }
 x509-certificate = "0.12"
 x509 = "0.2"
 yubikey = "0.5"
@@ -29,9 +33,9 @@ cocoa-foundation = { git = "https://github.com/servo/core-foundation-rs", rev = 
 objc = "0.2"
 
 [patch.crates-io]
-eframe = { git = "https://github.com/indygreg/egui", rev = "e7f220c7e791f1f51851b9df6f43c47fed27deb9" }
-egui_glow = { git = "https://github.com/indygreg/egui", rev = "e7f220c7e791f1f51851b9df6f43c47fed27deb9" }
-egui-winit = { git = "https://github.com/indygreg/egui", rev = "e7f220c7e791f1f51851b9df6f43c47fed27deb9" }
-egui = { git = "https://github.com/indygreg/egui", rev = "e7f220c7e791f1f51851b9df6f43c47fed27deb9" }
-epi = { git = "https://github.com/indygreg/egui", rev = "e7f220c7e791f1f51851b9df6f43c47fed27deb9" }
-winit = { git = "https://github.com/indygreg/winit", rev = "65aa338da3d87db54316d59e22d851aa8cc85cdb" }
+eframe = { git = "https://github.com/indygreg/egui", rev = "e5b9d8443f359c716843e28e3ed0a8d85b8a3ec4" }
+egui_glow = { git = "https://github.com/indygreg/egui", rev = "e5b9d8443f359c716843e28e3ed0a8d85b8a3ec4" }
+egui-winit = { git = "https://github.com/indygreg/egui", rev = "e5b9d8443f359c716843e28e3ed0a8d85b8a3ec4" }
+egui = { git = "https://github.com/indygreg/egui", rev = "e5b9d8443f359c716843e28e3ed0a8d85b8a3ec4" }
+epi = { git = "https://github.com/indygreg/egui", rev = "e5b9d8443f359c716843e28e3ed0a8d85b8a3ec4" }
+winit = { git = "https://github.com/rust-windowing/winit", rev = "ce890c34551d9fb542f10dcb644d22d382e0c921" }

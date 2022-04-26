@@ -63,6 +63,15 @@ impl App {
             ..eframe::NativeOptions::default()
         };
 
-        eframe::run_native(Box::new(self.ui), options);
+        eframe::run_native(
+            "YubiKey SSH Agent",
+            options,
+            Box::new(|cc| {
+                let ui = self.ui;
+                ui.setup(cc.egui_ctx.clone());
+
+                Box::new(ui)
+            }),
+        );
     }
 }

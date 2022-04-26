@@ -109,6 +109,10 @@ pub struct SshAgent {
     state: Arc<Mutex<State>>,
 }
 
+unsafe impl Sync for SshAgent {}
+
+unsafe impl Send for SshAgent {}
+
 impl SshAgent {
     pub fn new(slot: SlotId, state: Arc<Mutex<State>>) -> Self {
         Self {

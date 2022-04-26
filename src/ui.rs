@@ -6,7 +6,7 @@
 
 use {
     crate::Error,
-    eframe::epi::{App, Frame, Storage},
+    eframe::epi::{App, Frame},
     egui::{Color32, Context, Label, TextEdit},
     std::{
         fmt::{Display, Formatter},
@@ -109,7 +109,7 @@ pub struct State {
     failed_operations: u64,
     signature_operations: u64,
     agent_thread: Option<std::thread::JoinHandle<()>>,
-    frame: Option<Frame>,
+    ctx: Option<Context>,
 }
 
 impl Deref for State {
@@ -122,22 +122,22 @@ impl Deref for State {
 
 impl State {
     fn request_repaint(&self) {
-        self.frame
+        self.ctx
             .as_ref()
             .expect("UI frame should be defined")
             .request_repaint()
     }
 
     fn schedule_repaint(&self, duration: Duration) {
-        let frame = self
-            .frame
+        let ctx = self
+            .ctx
             .as_ref()
             .expect("UI frame should be defined")
             .clone();
 
         std::thread::spawn(move || {
             std::thread::sleep(duration);
-            frame.request_repaint();
+            ctx.request_repaint();
         });
     }
 
@@ -328,13 +328,7 @@ pub struct Ui {
 }
 
 impl App for Ui {
-    fn setup(&mut self, _ctx: &egui::Context, frame: &Frame, _storage: Option<&dyn Storage>) {
-        let mut state = self.state.lock().expect("unable to lock state");
-
-        state.frame = Some(frame.clone());
-    }
-
-    fn update(&mut self, ctx: &Context, frame: &Frame) {
+    fn update(&mut self, ctx: &Context, frame: &mut Frame) {
         let mut state = self.state.lock().expect("unable to acquire state lock");
 
         self.tray.reflect_state(&state);
@@ -373,14 +367,14 @@ impl App for Ui {
                 }
                 AppState::PinRequested => {
                     state.state = AppState::PinWaiting(false, "".into());
-                    frame.lock().output.window_visibility = Some(true);
+                    frame.set_window_visibility(Some(true));
                     ctx.request_repaint();
                 }
                 AppState::PinWaiting(focused, pin) => {
-                    frame.lock().output.window_visibility = Some(true);
+                    frame.set_window_visibility(Some(true));
 
                     if !*focused {
-                        frame.lock().output.window_focus = true;
+                        frame.set_window_focus(true);
                         *focused = true;
                     }
 
@@ -427,7 +421,7 @@ impl App for Ui {
 
                     if Instant::now() >= *hide_time {
                         state.state = AppState::Waiting;
-                        frame.lock().output.window_visibility = Some(false);
+                        frame.set_window_visibility(Some(false));
                         ctx.request_repaint();
                     }
                 }
@@ -436,16 +430,12 @@ impl App for Ui {
 
                     if Instant::now() >= *hide_time {
                         state.state = AppState::Waiting;
-                        frame.lock().output.window_visibility = Some(false);
+                        frame.set_window_visibility(Some(false));
                         ctx.request_repaint();
                     }
                 }
             }
         });
-    }
-
-    fn name(&self) -> &str {
-        "YubiKey SSH Agent"
     }
 }
 
@@ -461,5 +451,10 @@ impl Ui {
 
     pub fn get_state(&self) -> Arc<Mutex<State>> {
         self.state.clone()
+    }
+
+    pub fn setup(&self, ctx: Context) {
+        let mut state = self.state.lock().expect("unable to lock state");
+        state.ctx = Some(ctx);
     }
 }
