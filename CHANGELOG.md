@@ -1,5 +1,13 @@
 # Project History
 
+## 0.0.7
+
+(Not yet released)
+
+* Refactored GUI internals so we have more control over low-level
+  startup functionality. This shouldn't have changed any behavior.
+  But it wouldn't be surprising if it did.
+
 ## 0.0.6
 
 (Released on 2022-04-25)

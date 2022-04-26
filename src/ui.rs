@@ -29,6 +29,7 @@ use {
     cocoa_foundation::foundation::{NSAutoreleasePool, NSData, NSSize, NSString},
     objc::{msg_send, runtime::Sel, sel, sel_impl},
     std::{ffi::c_void, ptr::null},
+    winit::platform::macos::{ActivationPolicy, EventLoopBuilderExtMacOS},
 };
 
 const STATUS_BAR_ICON: &[u8] = include_bytes!("key.png");
@@ -489,6 +490,23 @@ fn create_display(
     (gl_window, gl)
 }
 
+#[cfg(target_os = "macos")]
+fn create_event_loop<T>() -> winit::event_loop::EventLoop<T> {
+    let mut builder = winit::event_loop::EventLoopBuilder::<T>::with_user_event();
+
+    // Disables docker and menubar but allows user interaction.
+    builder.with_activation_policy(ActivationPolicy::Accessory);
+
+    builder.build()
+}
+
+#[cfg(not(target_os = "macos"))]
+fn create_event_loop<T>() -> winit::event_loop::EventLoop<T> {
+    let mut builder = winit::event_loop::EventLoopBuilder::<T>::with_user_event();
+
+    builder.build()
+}
+
 #[allow(unsafe_code)]
 pub fn run_app(
     app_name: &str,
@@ -499,7 +517,7 @@ pub fn run_app(
     let window_settings = egui_winit::epi::load_window_settings(storage.as_deref());
     let window_builder =
         egui_winit::epi::window_builder(native_options, &window_settings).with_title(app_name);
-    let event_loop = winit::event_loop::EventLoop::with_user_event();
+    let event_loop = create_event_loop();
     let (gl_window, gl) = create_display(native_options, window_builder, &event_loop);
     let gl = std::rc::Rc::new(gl);
 

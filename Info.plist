@@ -24,7 +24,5 @@
     <string>public.app-category.developer-tools</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.9</string>
-    <key>LSUIElement</key>
-    <true/>
 </dict>
 </plist>
