@@ -7,7 +7,7 @@
 use {
     crate::{agent::SshAgent, Error},
     eframe::epi::{App, Frame},
-    egui::{Color32, Context, Label, TextEdit},
+    egui::{Context, Label, TextEdit},
     log::info,
     once_cell::sync::Lazy,
     ssh_agent::Agent,
@@ -554,6 +554,28 @@ impl App for Ui {
 }
 
 impl Ui {
+    /// Run the UI.
+    pub fn run(agent: SshAgent, socket_path: PathBuf) -> ! {
+        let options = eframe::NativeOptions {
+            always_on_top: true,
+            initial_window_size: Some(egui::Vec2::new(180.0, 32.0)),
+            resizable: false,
+            visible: false,
+            ..eframe::NativeOptions::default()
+        };
+
+        run_app(
+            "YubiKey SSH Agent",
+            &options,
+            Box::new(|cc| {
+                let ui = Self::default();
+                ui.setup(cc.egui_ctx.clone(), agent, socket_path);
+
+                Box::new(ui)
+            }),
+        );
+    }
+
     pub fn setup(&self, ctx: Context, agent: SshAgent, socket_path: PathBuf) {
         let mut state = locked_state();
         state.ctx = Some(ctx);

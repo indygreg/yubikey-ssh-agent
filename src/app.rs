@@ -84,23 +84,6 @@ impl App {
 
         let agent = SshAgent::new(slot_id, get_state());
 
-        let options = eframe::NativeOptions {
-            always_on_top: true,
-            initial_window_size: Some(egui::Vec2::new(180.0, 32.0)),
-            resizable: false,
-            visible: false,
-            ..eframe::NativeOptions::default()
-        };
-
-        crate::ui::run_app(
-            "YubiKey SSH Agent",
-            &options,
-            Box::new(|cc| {
-                let ui = Ui::default();
-                ui.setup(cc.egui_ctx.clone(), agent, socket_path);
-
-                Box::new(ui)
-            }),
-        );
+        Ui::run(agent, socket_path)
     }
 }
