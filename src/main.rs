@@ -22,6 +22,7 @@ use {
     clap::Parser,
     directories::ProjectDirs,
     log::{error, warn},
+    serde::{Deserialize, Serialize},
     std::{path::PathBuf, str::FromStr},
     thiserror::Error,
     yubikey::{piv::SlotId, Error as YkError},
@@ -29,6 +30,9 @@ use {
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("configuration file error: {0}")]
+    Confy(#[from] confy::ConfyError),
+
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
@@ -49,6 +53,22 @@ pub enum Error {
 
     #[error("SmartCard authentication failed")]
     SmartcardFailedAuthentication,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct Config {
+    /// Whether to overwrite an existing `SSH_AUTH_SOCK` with ours.
+    overwrite_ssh_auth_sock: bool,
+}
+
+impl Config {
+    pub fn load() -> Result<Self, Error> {
+        Ok(confy::load::<Config>("yubikey-ssh-agent")?)
+    }
+
+    pub fn save(&self) -> Result<(), Error> {
+        Ok(confy::store("yubikey-ssh-agent", self.clone())?)
+    }
 }
 
 /// An opinionated SSH Agent for YubiKeys.
@@ -122,7 +142,7 @@ struct Cli {
     slot: String,
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let project_dir = ProjectDirs::from("com.gregoryszorc", "", "yubikey-ssh-agent")
@@ -134,12 +154,16 @@ fn main() {
 
     let cli = Cli::parse();
 
-    let slot = SlotId::from_str(&cli.slot).expect("illegal slot value; try 9a");
+    let config = Config::load()?;
+
+    let slot = SlotId::from_str(&cli.slot)?;
     warn!("using slot {:?}", slot);
 
     let socket_path = cli.socket.unwrap_or(default_socket_path);
     warn!("using socket {}", socket_path.display());
 
     let app = crate::app::App::new();
-    app.run(slot, socket_path)
+    app.run(config, slot, socket_path)?;
+
+    Ok(())
 }

@@ -9,6 +9,7 @@ readme = "README.md"
 [dependencies]
 base64 = "0.13"
 clap = { version = "3.1", features = ["derive"] }
+confy = "0.4"
 directories = "4.0"
 egui = { git = "https://github.com/indygreg/egui", rev = "e5b9d8443f359c716843e28e3ed0a8d85b8a3ec4" }
 egui_glow = { git = "https://github.com/indygreg/egui", rev = "e5b9d8443f359c716843e28e3ed0a8d85b8a3ec4" }
@@ -20,6 +21,7 @@ glow = "0.11"
 glutin = "0.28"
 log = "0.4"
 rsa = "0.5"
+serde = "1.0"
 ssh-agent = { version = "0.2", features = ["agent"] }
 ssh-key = { version = "0.4", features = ["alloc", "ecdsa"] }
 thiserror = "1.0"

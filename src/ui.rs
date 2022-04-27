@@ -11,14 +11,17 @@ use {
     std::{
         fmt::{Display, Formatter},
         ops::Deref,
+        path::PathBuf,
         sync::{Arc, Mutex},
         time::{Duration, Instant},
     },
     zeroize::Zeroizing,
 };
 
+use crate::app;
 #[cfg(target_os = "macos")]
 use {
+    app::{install_environment_socket, is_environment_socket},
     cocoa::{
         appkit::{
             NSApp, NSApplication, NSButton, NSImage, NSMenu, NSMenuItem, NSSquareStatusItemLength,
@@ -110,6 +113,7 @@ pub struct State {
     failed_operations: u64,
     signature_operations: u64,
     agent_thread: Option<std::thread::JoinHandle<()>>,
+    agent_socket: Option<PathBuf>,
     ctx: Option<Context>,
 }
 
@@ -144,6 +148,10 @@ impl State {
 
     pub fn set_agent_thread(&mut self, handle: std::thread::JoinHandle<()>) {
         self.agent_thread = Some(handle);
+    }
+
+    pub fn set_agent_socket(&mut self, path: PathBuf) {
+        self.agent_socket = Some(path);
     }
 
     /// Define whether a device is actively connected.
@@ -212,6 +220,22 @@ impl State {
         self.signature_operations += 1;
         self.request_repaint();
     }
+
+    pub fn is_environment_socket(&self) -> Result<bool, Error> {
+        if let Some(path) = &self.agent_socket {
+            is_environment_socket(path)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn replace_environment_socket(&self) -> Result<(), Error> {
+        if let Some(path) = &self.agent_socket {
+            install_environment_socket(path)
+        } else {
+            Ok(())
+        }
+    }
 }
 
 trait Tray {
@@ -229,6 +253,8 @@ pub struct SystemTray {
     device_state_item: id,
     #[cfg(target_os = "macos")]
     auth_state_item: id,
+    #[cfg(target_os = "macos")]
+    replace_ssh_socket_item: id,
 }
 
 #[cfg(target_os = "macos")]
@@ -273,6 +299,14 @@ impl Tray for SystemTray {
             );
             menu.addItem_(auth_state_item);
 
+            let replace_ssh_socket_item = NSMenuItem::alloc(nil)
+                .initWithTitle_action_keyEquivalent_(
+                    NSString::alloc(nil).init_str("(Unknown Socket State)"),
+                    Sel::from_ptr(null()),
+                    NSString::alloc(nil).init_str(""),
+                );
+            menu.addItem_(replace_ssh_socket_item);
+
             menu.addItem_(NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
                 NSString::alloc(nil).init_str("Quit"),
                 sel!(terminate:),
@@ -286,6 +320,7 @@ impl Tray for SystemTray {
                 menu,
                 device_state_item,
                 auth_state_item,
+                replace_ssh_socket_item,
             }
         }
     }
@@ -310,6 +345,21 @@ impl Tray for SystemTray {
                 .setTitle_(NSString::alloc(nil).init_str(device_title));
             self.auth_state_item
                 .setTitle_(NSString::alloc(nil).init_str(auth_title))
+        }
+
+        let title = if let Ok(is_env) = state.is_environment_socket() {
+            if is_env {
+                "(Installed as SSH_AUTH_SOCK)"
+            } else {
+                "(Not installed as SSH_AUTH_SOCK)"
+            }
+        } else {
+            "(SSH agent Not Running)"
+        };
+
+        unsafe {
+            self.replace_ssh_socket_item
+                .setTitle_(NSString::alloc(nil).init_str(title));
         }
     }
 }
