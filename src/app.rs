@@ -86,7 +86,7 @@ impl App {
 
         let options = eframe::NativeOptions {
             always_on_top: true,
-            initial_window_size: Some(egui::Vec2::new(180.0, 128.0)),
+            initial_window_size: Some(egui::Vec2::new(180.0, 32.0)),
             resizable: false,
             visible: false,
             ..eframe::NativeOptions::default()

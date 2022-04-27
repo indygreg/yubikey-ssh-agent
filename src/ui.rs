@@ -476,98 +476,77 @@ impl App for Ui {
 
         let panel = egui::CentralPanel::default();
 
-        panel.show(&ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.label("Active Connection?");
+        panel.show(&ctx, |ui| match &mut state.state {
+            AppState::Waiting => {
+                ui.add(Label::new("(waiting for PIN request)"));
+            }
+            AppState::PinRequested => {
+                state.state = AppState::PinWaiting(false, "".into());
+                frame.set_window_visibility(Some(true));
+                ctx.request_repaint();
+            }
+            AppState::PinWaiting(focused, pin) => {
+                frame.set_window_visibility(Some(true));
 
-                if state.session_opened {
-                    ui.colored_label(
-                        match state.auth_state {
-                            AuthenticationState::Unknown => Color32::BLUE,
-                            AuthenticationState::Authenticated => Color32::GREEN,
-                            AuthenticationState::Unauthenticated => Color32::RED,
-                        },
-                        "yes",
-                    );
+                if !*focused {
+                    frame.set_window_focus(true);
+                    *focused = true;
+                }
+
+                let (text_response, unlock_response, deny_response) = ui
+                    .horizontal(|ui| {
+                        let text_edit = TextEdit::singleline(pin)
+                            .password(true)
+                            .hint_text("PIN")
+                            .desired_width(40.0);
+
+                        let text = ui.add(text_edit);
+                        let unlock = ui.button("Unlock");
+                        let deny = ui.button("Deny");
+
+                        (text, unlock, deny)
+                    })
+                    .inner;
+
+                let pin_entered = (text_response.lost_focus()
+                    && ui.input().key_pressed(egui::Key::Enter))
+                    || unlock_response.clicked();
+
+                if deny_response.clicked() {
+                    state.state = AppState::PinEntryDenied;
+                    ctx.request_repaint();
+                } else if pin_entered {
+                    state.state = AppState::PinEntered(Zeroizing::new(pin.clone()));
+                    ctx.request_repaint();
                 } else {
-                    ui.label("no");
+                    text_response.request_focus();
                 }
-            });
+            }
+            AppState::PinEntered(_) => {
+                ui.add(Label::new("(waiting on agent to use PIN)"));
+            }
+            AppState::PinEntryDenied => {
+                ui.add(Label::new("(waiting on agent to see PIN refusal)"));
+            }
+            AppState::PinResultPending => {
+                ui.add(Label::new("(waiting on PIN attempt result)"));
+            }
+            AppState::PinAccepted(hide_time) => {
+                ui.add(Label::new("The PIN is valid!"));
 
-            ui.separator();
-
-            match &mut state.state {
-                AppState::Waiting => {
-                    ui.add(Label::new("(waiting for PIN request)"));
-                }
-                AppState::PinRequested => {
-                    state.state = AppState::PinWaiting(false, "".into());
-                    frame.set_window_visibility(Some(true));
+                if Instant::now() >= *hide_time {
+                    state.state = AppState::Waiting;
+                    frame.set_window_visibility(Some(false));
                     ctx.request_repaint();
                 }
-                AppState::PinWaiting(focused, pin) => {
-                    frame.set_window_visibility(Some(true));
+            }
+            AppState::PinRejected(hide_time) => {
+                ui.add(Label::new("The PIN was rejected"));
 
-                    if !*focused {
-                        frame.set_window_focus(true);
-                        *focused = true;
-                    }
-
-                    let (text_response, unlock_response, deny_response) = ui
-                        .horizontal(|ui| {
-                            let text_edit = TextEdit::singleline(pin)
-                                .password(true)
-                                .hint_text("PIN")
-                                .desired_width(40.0);
-
-                            let text = ui.add(text_edit);
-                            let unlock = ui.button("Unlock");
-                            let deny = ui.button("Deny");
-
-                            (text, unlock, deny)
-                        })
-                        .inner;
-
-                    let pin_entered = (text_response.lost_focus()
-                        && ui.input().key_pressed(egui::Key::Enter))
-                        || unlock_response.clicked();
-
-                    if deny_response.clicked() {
-                        state.state = AppState::PinEntryDenied;
-                        ctx.request_repaint();
-                    } else if pin_entered {
-                        state.state = AppState::PinEntered(Zeroizing::new(pin.clone()));
-                        ctx.request_repaint();
-                    } else {
-                        text_response.request_focus();
-                    }
-                }
-                AppState::PinEntered(_) => {
-                    ui.add(Label::new("(waiting on agent to use PIN)"));
-                }
-                AppState::PinEntryDenied => {
-                    ui.add(Label::new("(waiting on agent to see PIN refusal)"));
-                }
-                AppState::PinResultPending => {
-                    ui.add(Label::new("(waiting on PIN attempt result)"));
-                }
-                AppState::PinAccepted(hide_time) => {
-                    ui.add(Label::new("The PIN is valid!"));
-
-                    if Instant::now() >= *hide_time {
-                        state.state = AppState::Waiting;
-                        frame.set_window_visibility(Some(false));
-                        ctx.request_repaint();
-                    }
-                }
-                AppState::PinRejected(hide_time) => {
-                    ui.add(Label::new("The PIN was rejected"));
-
-                    if Instant::now() >= *hide_time {
-                        state.state = AppState::Waiting;
-                        frame.set_window_visibility(Some(false));
-                        ctx.request_repaint();
-                    }
+                if Instant::now() >= *hide_time {
+                    state.state = AppState::Waiting;
+                    frame.set_window_visibility(Some(false));
+                    ctx.request_repaint();
                 }
             }
         });
