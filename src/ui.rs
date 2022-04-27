@@ -47,7 +47,7 @@ use {
 
 const STATUS_BAR_ICON: &[u8] = include_bytes!("key.png");
 
-const HIDE_WINDOW_AFTER_OPERATION_MILLISECONDS: u64 = 3000;
+const HIDE_WINDOW_AFTER_OPERATION_MILLISECONDS: u64 = 2000;
 
 static STATE: Lazy<Arc<Mutex<State>>> = Lazy::new(|| Arc::new(Mutex::new(State::default())));
 
