@@ -389,7 +389,7 @@ impl Tray for SystemTray {
                 ("(Installed as SSH_AUTH_SOCK)", None)
             } else {
                 (
-                    "(Not installed as SSH_AUTH_SOCK)",
+                    "(Click to install as SSH_AUTH_SOCK)",
                     Some(on_select_install_ssh_auth_sock),
                 )
             }
