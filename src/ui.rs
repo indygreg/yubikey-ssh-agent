@@ -126,6 +126,7 @@ pub struct State {
     signature_operations: u64,
     agent_thread: Option<std::thread::JoinHandle<()>>,
     agent_socket: Option<PathBuf>,
+    tray: Option<SystemTray>,
     ctx: Option<Context>,
 }
 
@@ -269,13 +270,13 @@ pub struct SystemTray {
     replace_ssh_socket_item: id,
 }
 
+unsafe impl Sync for SystemTray {}
+unsafe impl Send for SystemTray {}
+
 #[cfg(target_os = "macos")]
 impl Tray for SystemTray {
     fn new() -> Self {
         unsafe {
-            let app = NSApp();
-            app.activateIgnoringOtherApps_(YES);
-
             let status_bar = NSStatusBar::systemStatusBar(nil)
                 .autorelease()
                 .statusItemWithLength_(NSSquareStatusItemLength);
@@ -385,15 +386,16 @@ impl Tray for SystemTray {
     fn reflect_state(&self, state: &State) {}
 }
 
-pub struct Ui {
-    tray: SystemTray,
-}
+#[derive(Default)]
+pub struct Ui {}
 
 impl App for Ui {
     fn update(&mut self, ctx: &Context, frame: &mut Frame) {
         let mut state = locked_state();
 
-        self.tray.reflect_state(&state);
+        if let Some(tray) = &state.tray {
+            tray.reflect_state(&state);
+        }
 
         let panel = egui::CentralPanel::default();
 
@@ -502,15 +504,13 @@ impl App for Ui {
 }
 
 impl Ui {
-    pub fn new() -> Self {
-        let tray = SystemTray::new();
-
-        Self { tray }
-    }
-
     pub fn setup(&self, ctx: Context) {
         let mut state = locked_state();
         state.ctx = Some(ctx);
+
+        if state.tray.is_none() {
+            state.tray.replace(SystemTray::new());
+        }
     }
 }
 

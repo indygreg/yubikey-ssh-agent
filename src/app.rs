@@ -57,13 +57,11 @@ pub fn install_environment_socket(socket_path: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-pub struct App {
-    ui: Ui,
-}
+pub struct App {}
 
 impl App {
     pub fn new() -> Self {
-        Self { ui: Ui::new() }
+        Self {}
     }
 
     pub fn state(&self) -> Arc<Mutex<State>> {
@@ -111,7 +109,7 @@ impl App {
             "YubiKey SSH Agent",
             &options,
             Box::new(|cc| {
-                let ui = self.ui;
+                let ui = Ui::default();
                 ui.setup(cc.egui_ctx.clone());
 
                 Box::new(ui)
