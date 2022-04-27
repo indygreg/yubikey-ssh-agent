@@ -287,6 +287,10 @@ pub struct SystemTray {
     auth_state_item: id,
     #[cfg(target_os = "macos")]
     replace_ssh_socket_item: id,
+    #[cfg(target_os = "macos")]
+    signing_operations_item: id,
+    #[cfg(target_os = "macos")]
+    failed_operations_item: id,
 }
 
 unsafe impl Sync for SystemTray {}
@@ -348,6 +352,26 @@ impl Tray for SystemTray {
 
             menu.addItem_(NSMenuItem::separatorItem(nil));
 
+            let signing_operations_item = NSMenuItem::alloc(nil)
+                .initWithTitle_action_keyEquivalent_(
+                    NSString::alloc(nil).init_str("0 signing operations"),
+                    Sel::from_ptr(null()),
+                    NSString::alloc(nil).init_str(""),
+                );
+            signing_operations_item.setEnabled_(NO);
+            menu.addItem_(signing_operations_item);
+
+            let failed_operations_item = NSMenuItem::alloc(nil)
+                .initWithTitle_action_keyEquivalent_(
+                    NSString::alloc(nil).init_str("0 failed operations"),
+                    Sel::from_ptr(null()),
+                    NSString::alloc(nil).init_str(""),
+                );
+            failed_operations_item.setEnabled_(NO);
+            menu.addItem_(failed_operations_item);
+
+            menu.addItem_(NSMenuItem::separatorItem(nil));
+
             menu.addItem_(NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
                 NSString::alloc(nil).init_str("Quit"),
                 sel!(terminate:),
@@ -362,6 +386,8 @@ impl Tray for SystemTray {
                 device_state_item,
                 auth_state_item,
                 replace_ssh_socket_item,
+                signing_operations_item,
+                failed_operations_item,
             }
         }
     }
@@ -413,6 +439,18 @@ impl Tray for SystemTray {
             let enabled = if target.is_some() { YES } else { NO };
             self.replace_ssh_socket_item.setEnabled_(enabled);
         }
+
+        unsafe {
+            self.signing_operations_item
+                .setTitle_(NSString::alloc(nil).init_str(&format!(
+                    "{} signing operations",
+                    state.signature_operations
+                )));
+            self.failed_operations_item.setTitle_(
+                NSString::alloc(nil)
+                    .init_str(&format!("{} failed operations", state.failed_operations)),
+            );
+        }
     }
 }
 
@@ -455,12 +493,6 @@ impl App for Ui {
                     ui.label("no");
                 }
             });
-
-            ui.label(format!(
-                "Signing operations: {}",
-                state.signature_operations
-            ));
-            ui.label(format!("Failed operations: {}", state.failed_operations));
 
             ui.separator();
 
