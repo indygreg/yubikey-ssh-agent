@@ -10,6 +10,7 @@
 * There is now a system tray menu item to reflect whether the agent
   is installed via `SSH_AUTH_SOCK`. If it isn't, you can click the
   menu item to replace `SSH_AUTH_SOCK` with this daemon's socket.
+* Fixed a race condition on app startup that could result in a crash.
 
 ## 0.0.6
 

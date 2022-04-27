@@ -7,16 +7,14 @@
 use {
     crate::{
         agent::SshAgent,
-        ui::{get_state, locked_state, Ui},
+        ui::{get_state, Ui},
         Config, Error,
     },
     log::warn,
-    ssh_agent::Agent,
     std::{
         fs::read_link,
         os::unix::fs::symlink,
         path::{Path, PathBuf},
-        thread,
     },
     yubikey::piv::SlotId,
 };
@@ -84,17 +82,7 @@ impl App {
             install_environment_socket(&socket_path)?;
         }
 
-        locked_state().set_agent_socket(socket_path.clone());
-
         let agent = SshAgent::new(slot_id, get_state());
-
-        let agent_thread = thread::spawn(move || {
-            agent
-                .run_unix(&socket_path)
-                .expect("error running SSH agent")
-        });
-
-        locked_state().set_agent_thread(agent_thread);
 
         let options = eframe::NativeOptions {
             always_on_top: true,
@@ -109,7 +97,7 @@ impl App {
             &options,
             Box::new(|cc| {
                 let ui = Ui::default();
-                ui.setup(cc.egui_ctx.clone());
+                ui.setup(cc.egui_ctx.clone(), agent, socket_path);
 
                 Box::new(ui)
             }),

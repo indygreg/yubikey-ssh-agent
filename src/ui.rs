@@ -5,11 +5,12 @@
 //! UI elements.
 
 use {
-    crate::Error,
+    crate::{agent::SshAgent, Error},
     eframe::epi::{App, Frame},
     egui::{Color32, Context, Label, TextEdit},
     log::info,
     once_cell::sync::Lazy,
+    ssh_agent::Agent,
     std::{
         fmt::{Display, Formatter},
         ops::Deref,
@@ -536,9 +537,18 @@ impl App for Ui {
 }
 
 impl Ui {
-    pub fn setup(&self, ctx: Context) {
+    pub fn setup(&self, ctx: Context, agent: SshAgent, socket_path: PathBuf) {
         let mut state = locked_state();
         state.ctx = Some(ctx);
+        state.set_agent_socket(socket_path.clone());
+
+        let agent_thread = std::thread::spawn(move || {
+            agent
+                .run_unix(&socket_path)
+                .expect("error running SSH agent")
+        });
+
+        state.set_agent_thread(agent_thread);
 
         if state.tray.is_none() {
             state.tray.replace(SystemTray::new());
