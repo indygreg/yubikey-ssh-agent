@@ -8,20 +8,20 @@ use {
     crate::Error,
     eframe::epi::{App, Frame},
     egui::{Color32, Context, Label, TextEdit},
+    once_cell::sync::Lazy,
     std::{
         fmt::{Display, Formatter},
         ops::Deref,
         path::PathBuf,
-        sync::{Arc, Mutex},
+        sync::{Arc, Mutex, MutexGuard},
         time::{Duration, Instant},
     },
     zeroize::Zeroizing,
 };
 
-use crate::app;
 #[cfg(target_os = "macos")]
 use {
-    app::{install_environment_socket, is_environment_socket},
+    crate::app::{install_environment_socket, is_environment_socket},
     cocoa::{
         appkit::{
             NSApp, NSApplication, NSButton, NSImage, NSMenu, NSMenuItem, NSSquareStatusItemLength,
@@ -38,6 +38,18 @@ use {
 const STATUS_BAR_ICON: &[u8] = include_bytes!("key.png");
 
 const HIDE_WINDOW_AFTER_OPERATION_MILLISECONDS: u64 = 3000;
+
+static STATE: Lazy<Arc<Mutex<State>>> = Lazy::new(|| Arc::new(Mutex::new(State::default())));
+
+/// Obtain a new handle on the global state.
+pub fn get_state() -> Arc<Mutex<State>> {
+    STATE.clone()
+}
+
+/// Obtain a handle on the locked state.
+pub fn locked_state() -> MutexGuard<'static, State> {
+    STATE.lock().expect("unable to lock global state")
+}
 
 pub enum AppState {
     /// Waiting for something to happen.
@@ -374,13 +386,12 @@ impl Tray for SystemTray {
 }
 
 pub struct Ui {
-    state: Arc<Mutex<State>>,
     tray: SystemTray,
 }
 
 impl App for Ui {
     fn update(&mut self, ctx: &Context, frame: &mut Frame) {
-        let mut state = self.state.lock().expect("unable to acquire state lock");
+        let mut state = locked_state();
 
         self.tray.reflect_state(&state);
 
@@ -494,18 +505,11 @@ impl Ui {
     pub fn new() -> Self {
         let tray = SystemTray::new();
 
-        Self {
-            state: Arc::new(Mutex::new(State::default())),
-            tray,
-        }
-    }
-
-    pub fn get_state(&self) -> Arc<Mutex<State>> {
-        self.state.clone()
+        Self { tray }
     }
 
     pub fn setup(&self, ctx: Context) {
-        let mut state = self.state.lock().expect("unable to lock state");
+        let mut state = locked_state();
         state.ctx = Some(ctx);
     }
 }

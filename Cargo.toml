@@ -20,6 +20,7 @@ env_logger = "0.9"
 glow = "0.11"
 glutin = "0.28"
 log = "0.4"
+once_cell = "1.10"
 rsa = "0.5"
 serde = "1.0"
 ssh-agent = { version = "0.2", features = ["agent"] }
