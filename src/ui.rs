@@ -334,6 +334,8 @@ impl Tray for SystemTray {
             auth_state_item.setEnabled_(NO);
             menu.addItem_(auth_state_item);
 
+            menu.addItem_(NSMenuItem::separatorItem(nil));
+
             let replace_ssh_socket_item = NSMenuItem::alloc(nil)
                 .initWithTitle_action_keyEquivalent_(
                     NSString::alloc(nil).init_str("(Unknown Socket State)"),
@@ -343,6 +345,8 @@ impl Tray for SystemTray {
 
             replace_ssh_socket_item.setEnabled_(NO);
             menu.addItem_(replace_ssh_socket_item);
+
+            menu.addItem_(NSMenuItem::separatorItem(nil));
 
             menu.addItem_(NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
                 NSString::alloc(nil).init_str("Quit"),
