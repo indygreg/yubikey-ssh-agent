@@ -7,7 +7,7 @@
 use {
     crate::{
         agent::SshAgent,
-        ui::{get_state, locked_state, State, Ui},
+        ui::{get_state, locked_state, Ui},
         Config, Error,
     },
     log::warn,
@@ -16,7 +16,6 @@ use {
         fs::read_link,
         os::unix::fs::symlink,
         path::{Path, PathBuf},
-        sync::{Arc, Mutex, MutexGuard},
         thread,
     },
     yubikey::piv::SlotId,
@@ -72,14 +71,6 @@ impl App {
         Self {}
     }
 
-    pub fn state(&self) -> Arc<Mutex<State>> {
-        get_state()
-    }
-
-    pub fn locked_state(&self) -> MutexGuard<'static, State> {
-        locked_state()
-    }
-
     pub fn run(self, config: Config, slot_id: SlotId, socket_path: PathBuf) -> Result<(), Error> {
         if let Some(parent) = socket_path.parent() {
             std::fs::create_dir_all(parent)?;
@@ -93,9 +84,9 @@ impl App {
             install_environment_socket(&socket_path)?;
         }
 
-        self.locked_state().set_agent_socket(socket_path.clone());
+        locked_state().set_agent_socket(socket_path.clone());
 
-        let agent = SshAgent::new(slot_id, self.state());
+        let agent = SshAgent::new(slot_id, get_state());
 
         let agent_thread = thread::spawn(move || {
             agent
@@ -103,7 +94,7 @@ impl App {
                 .expect("error running SSH agent")
         });
 
-        self.locked_state().set_agent_thread(agent_thread);
+        locked_state().set_agent_thread(agent_thread);
 
         let options = eframe::NativeOptions {
             always_on_top: true,
