@@ -3650,6 +3650,8 @@ dependencies = [
  "glutin",
  "log",
  "objc",
+ "objc-foundation",
+ "objc_id",
  "once_cell",
  "rsa",
  "serde",
