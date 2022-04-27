@@ -150,7 +150,7 @@ impl State {
     fn request_repaint(&self) {
         self.ctx
             .as_ref()
-            .expect("UI frame should be defined")
+            .expect("UI context should be defined")
             .request_repaint()
     }
 
@@ -158,7 +158,7 @@ impl State {
         let ctx = self
             .ctx
             .as_ref()
-            .expect("UI frame should be defined")
+            .expect("UI context should be defined")
             .clone();
 
         std::thread::spawn(move || {
