@@ -2,7 +2,7 @@
 
 ## 0.0.7
 
-(Not yet released)
+(Released on 2022-04-27)
 
 * Refactored GUI internals so we have more control over low-level
   startup functionality. This shouldn't have changed any behavior.
