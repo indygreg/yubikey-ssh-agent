@@ -8,6 +8,7 @@ use {
     crate::Error,
     eframe::epi::{App, Frame},
     egui::{Color32, Context, Label, TextEdit},
+    log::info,
     once_cell::sync::Lazy,
     std::{
         fmt::{Display, Formatter},
@@ -24,7 +25,7 @@ use {
     crate::app::{install_environment_socket, is_environment_socket},
     cocoa::{
         appkit::{
-            NSApp, NSApplication, NSButton, NSImage, NSMenu, NSMenuItem, NSSquareStatusItemLength,
+            NSButton, NSControl, NSImage, NSMenu, NSMenuItem, NSSquareStatusItemLength,
             NSStatusBar, NSStatusItem,
         },
         base::{id, nil, NO, YES},
@@ -258,6 +259,14 @@ impl State {
     }
 }
 
+/// Called when the menu item to install the SSH_AUTH_SOCK is selected.
+fn on_select_install_ssh_auth_sock() -> () {
+    info!("installing as environment SSH socket in response to menu select");
+    locked_state()
+        .replace_environment_socket()
+        .expect("error replacing environment socket");
+}
+
 trait Tray {
     fn new() -> Self;
 
@@ -304,12 +313,14 @@ impl Tray for SystemTray {
             let _: () = msg_send![icon_image, setTemplate: NO];
 
             let menu = NSMenu::new(nil).autorelease();
+            let _: () = msg_send![menu, setAutoenablesItems: 0];
 
             let device_state_item = NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
                 NSString::alloc(nil).init_str("(Unknown Device State)"),
                 Sel::from_ptr(null()),
                 NSString::alloc(nil).init_str(""),
             );
+            device_state_item.setEnabled_(NO);
             menu.addItem_(device_state_item);
 
             let auth_state_item = NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
@@ -317,14 +328,17 @@ impl Tray for SystemTray {
                 Sel::from_ptr(null()),
                 NSString::alloc(nil).init_str(""),
             );
+            auth_state_item.setEnabled_(NO);
             menu.addItem_(auth_state_item);
 
             let replace_ssh_socket_item = NSMenuItem::alloc(nil)
                 .initWithTitle_action_keyEquivalent_(
                     NSString::alloc(nil).init_str("(Unknown Socket State)"),
-                    Sel::from_ptr(null()),
+                    sel!(call),
                     NSString::alloc(nil).init_str(""),
                 );
+
+            replace_ssh_socket_item.setEnabled_(NO);
             menu.addItem_(replace_ssh_socket_item);
 
             menu.addItem_(NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
@@ -367,19 +381,30 @@ impl Tray for SystemTray {
                 .setTitle_(NSString::alloc(nil).init_str(auth_title))
         }
 
-        let title = if let Ok(is_env) = state.is_environment_socket() {
+        let (title, target) = if let Ok(is_env) = state.is_environment_socket() {
             if is_env {
-                "(Installed as SSH_AUTH_SOCK)"
+                ("(Installed as SSH_AUTH_SOCK)", None)
             } else {
-                "(Not installed as SSH_AUTH_SOCK)"
+                (
+                    "(Not installed as SSH_AUTH_SOCK)",
+                    Some(on_select_install_ssh_auth_sock),
+                )
             }
         } else {
-            "(SSH agent Not Running)"
+            ("(SSH agent Not Running)", None)
         };
 
         unsafe {
             self.replace_ssh_socket_item
                 .setTitle_(NSString::alloc(nil).init_str(title));
+
+            if let Some(cb) = target {
+                let cb = Callback::from(Box::new(cb));
+                let _: () = msg_send!(self.replace_ssh_socket_item, setTarget: cb);
+            }
+
+            let enabled = if target.is_some() { YES } else { NO };
+            self.replace_ssh_socket_item.setEnabled_(enabled);
         }
     }
 }

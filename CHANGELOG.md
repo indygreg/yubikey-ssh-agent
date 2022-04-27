@@ -7,6 +7,9 @@
 * Refactored GUI internals so we have more control over low-level
   startup functionality. This shouldn't have changed any behavior.
   But it wouldn't be surprising if it did.
+* There is now a system tray menu item to reflect whether the agent
+  is installed via `SSH_AUTH_SOCK`. If it isn't, you can click the
+  menu item to replace `SSH_AUTH_SOCK` with this daemon's socket.
 
 ## 0.0.6
 

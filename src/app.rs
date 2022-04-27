@@ -10,6 +10,7 @@ use {
         ui::{get_state, locked_state, State, Ui},
         Config, Error,
     },
+    log::warn,
     ssh_agent::Agent,
     std::{
         fs::read_link,
@@ -21,9 +22,11 @@ use {
     yubikey::piv::SlotId,
 };
 
+const SSH_SOCKET_ENV: &str = "SSH_AUTH_SOCK";
+
 /// Whether the given socket path is installed as `SSH_AUTH_SOCKET`.
 pub fn is_environment_socket(path: &Path) -> Result<bool, Error> {
-    if let Some(env) = std::env::var_os("SSH_AUTH_SOCKET") {
+    if let Some(env) = std::env::var_os(SSH_SOCKET_ENV) {
         let env_path = PathBuf::from(env);
 
         if env_path == path {
@@ -40,7 +43,7 @@ pub fn is_environment_socket(path: &Path) -> Result<bool, Error> {
 
 /// Install a symlink to `path` in `SSH_AUTH_SOCKET`.
 pub fn install_environment_socket(socket_path: &Path) -> Result<(), Error> {
-    let env_path = if let Some(v) = std::env::var_os("SSH_AUTH_SOCK") {
+    let env_path = if let Some(v) = std::env::var_os(SSH_SOCKET_ENV) {
         v
     } else {
         return Ok(());
@@ -52,6 +55,11 @@ pub fn install_environment_socket(socket_path: &Path) -> Result<(), Error> {
         std::fs::remove_file(&env_path)?;
     }
 
+    warn!(
+        "installing symlink {} -> {}",
+        env_path.display(),
+        socket_path.display()
+    );
     symlink(&socket_path, &env_path)?;
 
     Ok(())
