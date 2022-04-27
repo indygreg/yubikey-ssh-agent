@@ -253,7 +253,9 @@ impl State {
 
     pub fn replace_environment_socket(&self) -> Result<(), Error> {
         if let Some(path) = &self.agent_socket {
-            install_environment_socket(path)
+            install_environment_socket(path)?;
+            self.request_repaint();
+            Ok(())
         } else {
             Ok(())
         }
