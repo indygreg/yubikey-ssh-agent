@@ -3639,6 +3639,7 @@ dependencies = [
  "cocoa",
  "cocoa-foundation 0.1.1",
  "confy",
+ "core-graphics 0.22.3",
  "directories 4.0.1",
  "eframe",
  "egui",

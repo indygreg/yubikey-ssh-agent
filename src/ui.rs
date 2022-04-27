@@ -18,6 +18,7 @@ use {
         sync::{Arc, Mutex, MutexGuard},
         time::{Duration, Instant},
     },
+    winit::dpi::{LogicalPosition, PhysicalPosition},
     zeroize::Zeroizing,
 };
 
@@ -31,7 +32,7 @@ use {
         },
         base::{id, nil, NO, YES},
     },
-    cocoa_foundation::foundation::{NSAutoreleasePool, NSData, NSSize, NSString},
+    cocoa_foundation::foundation::{NSAutoreleasePool, NSData, NSDictionary, NSSize, NSString},
     objc::{
         declare::ClassDecl,
         msg_send,
@@ -274,6 +275,8 @@ trait Tray {
     fn new() -> Self;
 
     fn reflect_state(&self, state: &State);
+
+    fn outer_position(&self) -> PhysicalPosition<i32>;
 }
 
 pub struct SystemTray {
@@ -452,6 +455,26 @@ impl Tray for SystemTray {
             );
         }
     }
+
+    fn outer_position(&self) -> PhysicalPosition<i32> {
+        let window = unsafe {
+            self.status_bar
+                .valueForKey_(NSString::alloc(nil).init_str("window"))
+        };
+        let frame_rect = unsafe { cocoa::appkit::NSWindow::frame(window) };
+
+        let screen = unsafe { cocoa::appkit::NSWindow::screen(window) };
+
+        let position = LogicalPosition::new(
+            frame_rect.origin.x as f64,
+            core_graphics::display::CGDisplay::main().pixels_high() as f64
+                - (frame_rect.origin.y + frame_rect.size.height),
+        );
+
+        let scale_factor = unsafe { cocoa::appkit::NSScreen::backingScaleFactor(screen) };
+
+        position.to_physical(scale_factor)
+    }
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -461,6 +484,10 @@ impl Tray for SystemTray {
     }
 
     fn reflect_state(&self, state: &State) {}
+
+    fn outer_position(&self) -> PhysicalPosition<i32> {
+        unimplemented!()
+    }
 }
 
 #[derive(Default)]
@@ -472,6 +499,15 @@ impl App for Ui {
 
         if let Some(tray) = &state.tray {
             tray.reflect_state(&state);
+
+            // Position the window under the tray icon. By using the exact
+            // position of the tray, we infringe on the status bar space. But
+            // the OS thankfully snaps the window out of where it cannot go.
+            let tray_pos = tray.outer_position();
+            frame.set_window_pos(egui::Pos2 {
+                x: tray_pos.x as _,
+                y: tray_pos.y as _,
+            })
         }
 
         let panel = egui::CentralPanel::default();
@@ -559,6 +595,7 @@ impl Ui {
         let options = eframe::NativeOptions {
             always_on_top: true,
             initial_window_size: Some(egui::Vec2::new(180.0, 32.0)),
+            decorated: false,
             resizable: false,
             visible: false,
             ..eframe::NativeOptions::default()

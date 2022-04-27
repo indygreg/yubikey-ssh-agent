@@ -11,6 +11,10 @@
   is installed via `SSH_AUTH_SOCK`. If it isn't, you can click the
   menu item to replace `SSH_AUTH_SOCK` with this daemon's socket.
 * Fixed a race condition on app startup that could result in a crash.
+* Significant changes to PIN prompt window. It should now appear
+  under the tray icon. It has no window decorations. Context that
+  was displayed in addition to the PIN prompt has been removed because
+  it is redundant with what's available in the tray menu.
 
 ## 0.0.6
 
