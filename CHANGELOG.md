@@ -2,7 +2,7 @@
 
 ## 0.0.8
 
-(Not yet released)
+(Released on 2022-05-09)
 
 * Fixed a gradual memory leak.
 * PIN prompt window can now time out and disappear on its own after
