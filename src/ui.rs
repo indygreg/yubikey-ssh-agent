@@ -8,7 +8,7 @@ use {
     crate::{agent::SshAgent, Error},
     eframe::epi::{App, Frame},
     egui::{Context, Label, TextEdit},
-    log::info,
+    log::{info, warn},
     once_cell::sync::Lazy,
     ssh_agent::Agent,
     std::{
@@ -54,6 +54,9 @@ const HIDE_WINDOW_AFTER_PENDING: Duration = Duration::from_millis(10000);
 
 /// Maximum time to wait for user to enter the PIN before giving up.
 const PIN_MAX_WAIT_TIME: Duration = Duration::from_millis(30000);
+
+/// Time after which to automatically disconnect the YubiKey.
+const YUBIKEY_DISCONNECT_TIME: Duration = Duration::from_secs(60 * 60);
 
 static STATE: Lazy<Arc<Mutex<State>>> = Lazy::new(|| Arc::new(Mutex::new(State::default())));
 
@@ -109,6 +112,7 @@ impl Default for AppState {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum AuthenticationState {
     Unknown,
     Authenticated,
@@ -147,6 +151,8 @@ pub struct State {
     tray: Option<SystemTray>,
     ctx: Option<Context>,
     pub yk: Arc<Mutex<Option<yubikey::YubiKey>>>,
+    /// Point in time after which we should drop the YubiKey session.
+    yk_drop_time: Option<Instant>,
 }
 
 impl Default for State {
@@ -162,6 +168,7 @@ impl Default for State {
             tray: None,
             ctx: None,
             yk: Arc::new(Mutex::new(None)),
+            yk_drop_time: None,
         }
     }
 }
@@ -211,6 +218,15 @@ impl State {
 
     pub fn set_authentication(&mut self, auth: AuthenticationState) {
         self.auth_state = auth;
+
+        // If we authenticated, schedule a future drop of the YubiKey
+        // session so we don't hold it open forever, which is a security
+        // risk.
+        if auth == AuthenticationState::Authenticated {
+            self.yk_drop_time = Some(Instant::now() + YUBIKEY_DISCONNECT_TIME);
+            self.schedule_repaint(YUBIKEY_DISCONNECT_TIME);
+        }
+
         self.request_repaint();
     }
 
@@ -291,6 +307,31 @@ impl State {
             Ok(())
         } else {
             Ok(())
+        }
+    }
+
+    /// Disconnect the YubiKey.
+    pub fn disconnect_yubikey(&mut self) {
+        self.yk_drop_time = None;
+        self.set_session_opened(false);
+        self.set_authentication(AuthenticationState::Unauthenticated);
+
+        let mut yk = self.yk.lock().expect("failed to lock YubiKey");
+        if yk.is_some() {
+            warn!("discarding YubiKey connection");
+            yk.take();
+        }
+
+        // Repaint would have been requested by state updates above.
+    }
+
+    /// Check for a pending YubiKey disconnect and take action, if necessary.
+    pub fn process_pending_disconnect(&mut self) {
+        if let Some(drop_time) = self.yk_drop_time {
+            if Instant::now() >= drop_time {
+                warn!("disconnecting YubiKey due to timeout");
+                self.disconnect_yubikey();
+            }
         }
     }
 }
@@ -535,6 +576,8 @@ pub struct Ui {}
 impl App for Ui {
     fn update(&mut self, ctx: &Context, frame: &mut Frame) {
         let mut state = locked_state();
+
+        state.process_pending_disconnect();
 
         if let Some(tray) = &state.tray {
             tray.reflect_state(&state);

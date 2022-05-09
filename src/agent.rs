@@ -130,6 +130,10 @@ impl SshAgent {
     ///
     /// If a YubiKey is available, returns `Some`. Otherwise `None`.
     pub fn get_yk(&self) -> Result<MutexGuard<Option<YubiKey>>, Error> {
+        // Ensure an overdue disconnect gets handled before returning a
+        // handle on the YubiKey.
+        self.get_state()?.process_pending_disconnect();
+
         let mut guard = self
             .yk
             .lock()

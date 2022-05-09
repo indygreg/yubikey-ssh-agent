@@ -8,6 +8,9 @@
 * PIN prompt window can now time out and disappear on its own after
   a few seconds of inactivity. Before, it was possible for the PIN
   prompt window to be retained on screen indefinitely.
+* The connection to the YubiKey is now dropped after 60 minutes of
+  inactivity. This shores up security a bit, as it limits how long
+  the YubiKey can be in an authenticated state.
 
 ## 0.0.7
 
