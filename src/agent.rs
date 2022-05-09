@@ -115,11 +115,9 @@ unsafe impl Send for SshAgent {}
 
 impl SshAgent {
     pub fn new(slot: SlotId, state: Arc<Mutex<State>>) -> Self {
-        Self {
-            yk: Arc::new(Mutex::new(None)),
-            slot,
-            state,
-        }
+        let yk = state.lock().expect("failed to lock state").yk.clone();
+
+        Self { yk, slot, state }
     }
 
     fn get_state(&self) -> Result<MutexGuard<State>, Error> {

@@ -136,7 +136,6 @@ pub enum PinEntry {
     Denied,
 }
 
-#[derive(Default)]
 pub struct State {
     session_opened: bool,
     auth_state: AuthenticationState,
@@ -147,6 +146,24 @@ pub struct State {
     agent_socket: Option<PathBuf>,
     tray: Option<SystemTray>,
     ctx: Option<Context>,
+    pub yk: Arc<Mutex<Option<yubikey::YubiKey>>>,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            session_opened: false,
+            auth_state: AuthenticationState::default(),
+            state: AppState::default(),
+            failed_operations: 0,
+            signature_operations: 0,
+            agent_thread: None,
+            agent_socket: None,
+            tray: None,
+            ctx: None,
+            yk: Arc::new(Mutex::new(None)),
+        }
+    }
 }
 
 impl Deref for State {
