@@ -7,7 +7,7 @@
     <key>CFBundleIdentifier</key>
     <string>com.gregoryszorc.yubikey-ssh-agent</string>
     <key>CFBundleVersion</key>
-    <string>0.0.6</string>
+    <string>0.0.8</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleExecutable</key>
