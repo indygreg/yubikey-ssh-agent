@@ -32,7 +32,7 @@ use {
     },
 };
 
-const PIN_PROMPT_TIMEOUT_SECONDS: u64 = 60;
+const PIN_PROMPT_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// Describes the needed authentication for an operation.
 pub enum RequiredAuthentication {
@@ -369,8 +369,7 @@ impl SshAgent {
                             self.get_state()?.request_pin()?;
                         }
 
-                        let deadline =
-                            Instant::now() + Duration::from_secs(PIN_PROMPT_TIMEOUT_SECONDS);
+                        let deadline = Instant::now() + PIN_PROMPT_TIMEOUT;
 
                         let pin;
 
