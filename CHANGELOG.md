@@ -1,5 +1,11 @@
 # Project History
 
+## 0.0.8
+
+(Not yet released)
+
+* Fixed a gradual memory leak.
+
 ## 0.0.7
 
 (Released on 2022-04-27)

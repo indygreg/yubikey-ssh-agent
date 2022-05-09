@@ -36,6 +36,7 @@ use {
     objc::{
         declare::ClassDecl,
         msg_send,
+        rc::autoreleasepool,
         runtime::{Class, Object, Sel},
         sel, sel_impl, Message,
     },
@@ -303,9 +304,8 @@ unsafe impl Send for SystemTray {}
 impl Tray for SystemTray {
     fn new() -> Self {
         unsafe {
-            let status_bar = NSStatusBar::systemStatusBar(nil)
-                .autorelease()
-                .statusItemWithLength_(NSSquareStatusItemLength);
+            let status_bar =
+                NSStatusBar::systemStatusBar(nil).statusItemWithLength_(NSSquareStatusItemLength);
 
             let title = NSString::alloc(nil).init_str("YubiKey SSH Agent");
             status_bar.setTitle_(title);
@@ -322,7 +322,7 @@ impl Tray for SystemTray {
             let _: () = msg_send![icon_image, setSize: icon_size];
             let _: () = msg_send![icon_image, setTemplate: NO];
 
-            let menu = NSMenu::new(nil).autorelease();
+            let menu = NSMenu::new(nil);
             let _: () = msg_send![menu, setAutoenablesItems: 0];
 
             let device_state_item = NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
@@ -396,84 +396,92 @@ impl Tray for SystemTray {
     }
 
     fn reflect_state(&self, state: &State) {
-        let (device_title, auth_title) = if state.session_opened {
-            let device = "YubiKey Active";
+        autoreleasepool(|| {
+            let (device_title, auth_title) = if state.session_opened {
+                let device = "YubiKey Active";
 
-            let auth = match state.auth_state {
-                AuthenticationState::Unknown => "Unknown Key Lock State",
-                AuthenticationState::Authenticated => "Key Unlocked",
-                AuthenticationState::Unauthenticated => "Key Locked",
+                let auth = match state.auth_state {
+                    AuthenticationState::Unknown => "Unknown Key Lock State",
+                    AuthenticationState::Authenticated => "Key Unlocked",
+                    AuthenticationState::Unauthenticated => "Key Locked",
+                };
+
+                (device, auth)
+            } else {
+                ("YubiKey Inactive", "Key Not Available")
             };
 
-            (device, auth)
-        } else {
-            ("YubiKey Inactive", "Key Not Available")
-        };
+            unsafe {
+                let title = NSString::alloc(nil).init_str(device_title);
+                self.device_state_item.setTitle_(title);
+                title.autorelease();
+                let title = NSString::alloc(nil).init_str(auth_title);
+                self.auth_state_item.setTitle_(title);
+                title.autorelease();
+            }
 
-        unsafe {
-            self.device_state_item
-                .setTitle_(NSString::alloc(nil).init_str(device_title));
-            self.auth_state_item
-                .setTitle_(NSString::alloc(nil).init_str(auth_title))
-        }
-
-        let (title, target) = if let Ok(is_env) = state.is_environment_socket() {
-            if is_env {
-                ("(Installed as SSH_AUTH_SOCK)", None)
+            let (title, target) = if let Ok(is_env) = state.is_environment_socket() {
+                if is_env {
+                    ("(Installed as SSH_AUTH_SOCK)", None)
+                } else {
+                    (
+                        "(Click to install as SSH_AUTH_SOCK)",
+                        Some(on_select_install_ssh_auth_sock),
+                    )
+                }
             } else {
-                (
-                    "(Click to install as SSH_AUTH_SOCK)",
-                    Some(on_select_install_ssh_auth_sock),
-                )
+                ("(SSH agent Not Running)", None)
+            };
+
+            unsafe {
+                let title = NSString::alloc(nil).init_str(title);
+                self.replace_ssh_socket_item.setTitle_(title);
+                title.autorelease();
+
+                if let Some(cb) = target {
+                    let cb = Callback::from(Box::new(cb));
+                    let _: () = msg_send!(self.replace_ssh_socket_item, setTarget: cb);
+                }
+
+                let enabled = if target.is_some() { YES } else { NO };
+                self.replace_ssh_socket_item.setEnabled_(enabled);
             }
-        } else {
-            ("(SSH agent Not Running)", None)
-        };
 
-        unsafe {
-            self.replace_ssh_socket_item
-                .setTitle_(NSString::alloc(nil).init_str(title));
-
-            if let Some(cb) = target {
-                let cb = Callback::from(Box::new(cb));
-                let _: () = msg_send!(self.replace_ssh_socket_item, setTarget: cb);
-            }
-
-            let enabled = if target.is_some() { YES } else { NO };
-            self.replace_ssh_socket_item.setEnabled_(enabled);
-        }
-
-        unsafe {
-            self.signing_operations_item
-                .setTitle_(NSString::alloc(nil).init_str(&format!(
+            unsafe {
+                let title = NSString::alloc(nil).init_str(&format!(
                     "{} signing operations",
                     state.signature_operations
-                )));
-            self.failed_operations_item.setTitle_(
-                NSString::alloc(nil)
-                    .init_str(&format!("{} failed operations", state.failed_operations)),
-            );
-        }
+                ));
+                self.signing_operations_item.setTitle_(title);
+                title.autorelease();
+                let title = NSString::alloc(nil)
+                    .init_str(&format!("{} failed operations", state.failed_operations));
+                self.failed_operations_item.setTitle_(title);
+                title.autorelease();
+            }
+        });
     }
 
     fn outer_position(&self) -> PhysicalPosition<i32> {
-        let window = unsafe {
-            self.status_bar
-                .valueForKey_(NSString::alloc(nil).init_str("window"))
-        };
-        let frame_rect = unsafe { cocoa::appkit::NSWindow::frame(window) };
+        autoreleasepool(|| {
+            let window = unsafe {
+                self.status_bar
+                    .valueForKey_(NSString::alloc(nil).init_str("window"))
+            };
+            let frame_rect = unsafe { cocoa::appkit::NSWindow::frame(window) };
 
-        let screen = unsafe { cocoa::appkit::NSWindow::screen(window) };
+            let screen = unsafe { cocoa::appkit::NSWindow::screen(window) };
 
-        let position = LogicalPosition::new(
-            frame_rect.origin.x as f64,
-            core_graphics::display::CGDisplay::main().pixels_high() as f64
-                - (frame_rect.origin.y + frame_rect.size.height),
-        );
+            let position = LogicalPosition::new(
+                frame_rect.origin.x as f64,
+                core_graphics::display::CGDisplay::main().pixels_high() as f64
+                    - (frame_rect.origin.y + frame_rect.size.height),
+            );
 
-        let scale_factor = unsafe { cocoa::appkit::NSScreen::backingScaleFactor(screen) };
+            let scale_factor = unsafe { cocoa::appkit::NSScreen::backingScaleFactor(screen) };
 
-        position.to_physical(scale_factor)
+            position.to_physical(scale_factor)
+        })
     }
 }
 
