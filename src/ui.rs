@@ -48,7 +48,12 @@ use {
 
 const STATUS_BAR_ICON: &[u8] = include_bytes!("key.png");
 
-const HIDE_WINDOW_AFTER_OPERATION_MILLISECONDS: u64 = 2000;
+const HIDE_WINDOW_AFTER_OPERATION: Duration = Duration::from_millis(2000);
+
+const HIDE_WINDOW_AFTER_PENDING: Duration = Duration::from_millis(10000);
+
+/// Maximum time to wait for user to enter the PIN before giving up.
+const PIN_MAX_WAIT_TIME: Duration = Duration::from_millis(30000);
 
 static STATE: Lazy<Arc<Mutex<State>>> = Lazy::new(|| Arc::new(Mutex::new(State::default())));
 
@@ -73,20 +78,23 @@ pub enum AppState {
     /// UI received the request for PIN and is collecting input from user.
     ///
     /// First element is whether we stole focus.
-    PinWaiting(bool, String),
+    PinWaiting(bool, String, Instant),
 
     /// User submitted a PIN.
     ///
     /// Waiting for agent to pick it up.
-    PinEntered(Zeroizing<String>),
+    PinEntered(Zeroizing<String>, Instant),
+
+    /// PIN entry timed out.
+    PinEntryTimeout(Instant),
 
     /// User denied request to enter PIN.
-    PinEntryDenied,
+    PinEntryDenied(Instant),
 
     /// Agent retrieved the PIN.
     ///
     /// Waiting on it to post a status update.
-    PinResultPending,
+    PinResultPending(Instant),
 
     /// Agent accepted a valid PIN.
     PinAccepted(Instant),
@@ -199,18 +207,24 @@ impl State {
 
     /// Retrieve the collected pin.
     pub fn retrieve_pin(&mut self) -> Option<PinEntry> {
+        let hide_time = Instant::now() + HIDE_WINDOW_AFTER_PENDING;
+
         match &self.state {
-            AppState::PinEntered(pin) => {
+            AppState::PinEntered(pin, _) => {
                 let pin = pin.clone();
-                self.state = AppState::PinResultPending;
+                self.state = AppState::PinResultPending(hide_time);
                 self.request_repaint();
 
                 Some(PinEntry::Pin(pin))
             }
-            AppState::PinEntryDenied => {
-                self.state = AppState::PinResultPending;
+            AppState::PinEntryDenied(_) => {
+                self.state = AppState::PinResultPending(hide_time);
                 self.request_repaint();
 
+                Some(PinEntry::Denied)
+            }
+            AppState::PinEntryTimeout(_) => {
+                self.request_repaint();
                 Some(PinEntry::Denied)
             }
             _ => None,
@@ -218,7 +232,7 @@ impl State {
     }
 
     pub fn pin_accepted(&mut self) {
-        let delay = Duration::from_millis(HIDE_WINDOW_AFTER_OPERATION_MILLISECONDS);
+        let delay = HIDE_WINDOW_AFTER_OPERATION;
         let hide_time = Instant::now() + delay;
 
         self.state = AppState::PinAccepted(hide_time);
@@ -227,7 +241,7 @@ impl State {
     }
 
     pub fn pin_rejected(&mut self) {
-        let delay = Duration::from_millis(HIDE_WINDOW_AFTER_OPERATION_MILLISECONDS);
+        let delay = HIDE_WINDOW_AFTER_OPERATION;
         let hide_time = Instant::now() + delay;
 
         self.state = AppState::PinRejected(hide_time);
@@ -525,12 +539,21 @@ impl App for Ui {
                 ui.add(Label::new("(waiting for PIN request)"));
             }
             AppState::PinRequested => {
-                state.state = AppState::PinWaiting(false, "".into());
+                let abort_time = Instant::now() + PIN_MAX_WAIT_TIME;
+                state.state = AppState::PinWaiting(false, "".into(), abort_time);
                 frame.set_window_visibility(Some(true));
+                state.schedule_repaint(PIN_MAX_WAIT_TIME);
                 ctx.request_repaint();
             }
-            AppState::PinWaiting(focused, pin) => {
+            AppState::PinWaiting(focused, pin, abort_time) => {
                 frame.set_window_visibility(Some(true));
+
+                if Instant::now() >= *abort_time {
+                    state.state =
+                        AppState::PinEntryTimeout(Instant::now() + HIDE_WINDOW_AFTER_OPERATION);
+                    ctx.request_repaint();
+                    return;
+                }
 
                 if !*focused {
                     frame.set_window_focus(true);
@@ -556,24 +579,61 @@ impl App for Ui {
                     && ui.input().key_pressed(egui::Key::Enter))
                     || unlock_response.clicked();
 
+                let hide_time = Instant::now() + HIDE_WINDOW_AFTER_PENDING;
+
                 if deny_response.clicked() {
-                    state.state = AppState::PinEntryDenied;
+                    state.state = AppState::PinEntryDenied(hide_time);
                     ctx.request_repaint();
                 } else if pin_entered {
-                    state.state = AppState::PinEntered(Zeroizing::new(pin.clone()));
+                    state.state = AppState::PinEntered(Zeroizing::new(pin.clone()), hide_time);
                     ctx.request_repaint();
                 } else {
                     text_response.request_focus();
                 }
             }
-            AppState::PinEntered(_) => {
+            AppState::PinEntered(_, hide_time) => {
                 ui.add(Label::new("(waiting on agent to use PIN)"));
+
+                if Instant::now() >= *hide_time {
+                    state.state = AppState::Waiting;
+                    frame.set_window_visibility(Some(false));
+                    ctx.request_repaint();
+                } else {
+                    state.schedule_repaint(Duration::from_millis(100));
+                }
             }
-            AppState::PinEntryDenied => {
+            AppState::PinEntryTimeout(hide_time) => {
+                ui.add(Label::new("(PIN entry timed out)"));
+
+                if Instant::now() >= *hide_time {
+                    state.state = AppState::Waiting;
+                    frame.set_window_visibility(Some(false));
+                    ctx.request_repaint();
+                } else {
+                    state.schedule_repaint(Duration::from_millis(100));
+                }
+            }
+            AppState::PinEntryDenied(hide_time) => {
                 ui.add(Label::new("(waiting on agent to see PIN refusal)"));
+
+                if Instant::now() >= *hide_time {
+                    state.state = AppState::Waiting;
+                    frame.set_window_visibility(Some(false));
+                    ctx.request_repaint();
+                } else {
+                    state.schedule_repaint(Duration::from_millis(100));
+                }
             }
-            AppState::PinResultPending => {
+            AppState::PinResultPending(hide_time) => {
                 ui.add(Label::new("(waiting on PIN attempt result)"));
+
+                if Instant::now() >= *hide_time {
+                    state.state = AppState::Waiting;
+                    frame.set_window_visibility(Some(false));
+                    ctx.request_repaint();
+                } else {
+                    state.schedule_repaint(Duration::from_millis(100));
+                }
             }
             AppState::PinAccepted(hide_time) => {
                 ui.add(Label::new("The PIN is valid!"));
@@ -582,6 +642,8 @@ impl App for Ui {
                     state.state = AppState::Waiting;
                     frame.set_window_visibility(Some(false));
                     ctx.request_repaint();
+                } else {
+                    state.schedule_repaint(Duration::from_millis(100));
                 }
             }
             AppState::PinRejected(hide_time) => {
@@ -591,6 +653,8 @@ impl App for Ui {
                     state.state = AppState::Waiting;
                     frame.set_window_visibility(Some(false));
                     ctx.request_repaint();
+                } else {
+                    state.schedule_repaint(Duration::from_millis(100));
                 }
             }
         });

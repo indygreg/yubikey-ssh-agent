@@ -5,6 +5,9 @@
 (Not yet released)
 
 * Fixed a gradual memory leak.
+* PIN prompt window can now time out and disappear on its own after
+  a few seconds of inactivity. Before, it was possible for the PIN
+  prompt window to be retained on screen indefinitely.
 
 ## 0.0.7
 
